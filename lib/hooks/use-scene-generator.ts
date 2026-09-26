@@ -210,6 +210,7 @@ export async function fetchSceneActions(
     previousSpeeches?: string[];
     userProfile?: string;
     languageDirective?: string;
+    requirements?: Partial<UserRequirements>;
   },
   signal?: AbortSignal,
   retryOptions?: ClientRetryOptions<SceneActionsResult>,
@@ -751,6 +752,7 @@ export interface GenerationParams {
   agents?: AgentInfo[];
   userProfile?: string;
   languageDirective?: string;
+  requirements?: UserRequirements;
   /** Vocational task-engine flag; gates procedural-skill generation server-side (see resolveVocationalActive). */
   taskEngineMode?: boolean;
 }
@@ -866,7 +868,11 @@ export function useSceneGenerator(options: UseSceneGeneratorOptions = {}) {
               stageInfo: params.stageInfo,
               agents: params.agents,
               languageDirective: params.languageDirective,
-              ...(params.taskEngineMode ? { requirements: { taskEngineMode: true } } : {}),
+              ...(params.requirements
+                ? { requirements: params.requirements }
+                : params.taskEngineMode
+                  ? { requirements: { taskEngineMode: true } }
+                  : {}),
             },
             signal,
           );
@@ -962,6 +968,7 @@ export function useSceneGenerator(options: UseSceneGeneratorOptions = {}) {
               previousSpeeches,
               userProfile: params.userProfile,
               languageDirective: params.languageDirective,
+              requirements: params.requirements,
             },
             signal,
           );
@@ -1120,7 +1127,11 @@ export function useSceneGenerator(options: UseSceneGeneratorOptions = {}) {
             stageInfo: params.stageInfo,
             agents: params.agents,
             languageDirective: params.languageDirective,
-            ...(params.taskEngineMode ? { requirements: { taskEngineMode: true } } : {}),
+            ...(params.requirements
+              ? { requirements: params.requirements }
+              : params.taskEngineMode
+                ? { requirements: { taskEngineMode: true } }
+                : {}),
           },
           signal,
         );
@@ -1149,6 +1160,7 @@ export function useSceneGenerator(options: UseSceneGeneratorOptions = {}) {
             previousSpeeches,
             userProfile: params.userProfile,
             languageDirective: params.languageDirective,
+            requirements: params.requirements,
           },
           signal,
         );

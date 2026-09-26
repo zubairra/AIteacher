@@ -59,6 +59,7 @@ import { isAbortError } from './generation-retry.js';
 import { generatePBLV2ProjectSingleCall } from './pbl/planner-single-call.js';
 import { PlannerV2Error } from './pbl/planner-core.js';
 import type { PBLPlannerV2Input } from './pbl/types.js';
+import { buildTeacherLedPromptContext } from './teacher-mode.js';
 
 function isGeneratedMediaPlaceholder(value: string | undefined): value is string {
   return !!value && /^gen_(img|vid)_[\w-]+$/i.test(value);
@@ -292,13 +293,21 @@ export async function generateSceneContent(
         resolvedVisionImages,
         agents,
         languageDirective,
+        userRequirements,
         editDirective,
         baselineContent,
         log,
         options.onFailure,
       );
     case 'quiz':
-      return generateQuizContent(outline, aiCall, languageDirective, log, options.onFailure);
+      return generateQuizContent(
+        outline,
+        aiCall,
+        languageDirective,
+        userRequirements,
+        log,
+        options.onFailure,
+      );
     case 'pbl':
       return generatePBLSceneContent(
         outline,
@@ -610,6 +619,7 @@ async function generateSlideContent(
   resolvedVisionImages?: Array<{ id: string; src: string; width?: number; height?: number }>,
   agents?: AgentInfo[],
   languageDirective?: string,
+  userRequirements?: UserRequirements,
   editDirective?: string,
   baselineContent?: GeneratedSlideContent,
   log: GenerationLogger = noopGenerationLogger,
@@ -717,6 +727,7 @@ async function generateSlideContent(
     canvas_width: canvasWidth,
     canvas_height: canvasHeight,
     teacherContext,
+    teacherModeContext: buildTeacherLedPromptContext(userRequirements),
     languageDirective: languageDirective || '',
     imageElementEnabled,
     generatedImageEnabled,
@@ -856,6 +867,7 @@ async function generateQuizContent(
   outline: SceneOutline,
   aiCall: AICallFn,
   languageDirective?: string,
+  userRequirements?: UserRequirements,
   log: GenerationLogger = noopGenerationLogger,
   onFailure?: (failure: SceneContentFailure) => void,
 ): Promise<GeneratedQuizContent | null> {
@@ -873,6 +885,7 @@ async function generateQuizContent(
     difficulty: quizConfig.difficulty,
     questionTypes: quizConfig.questionTypes.join(', '),
     languageDirective: languageDirective || '',
+    teacherModeContext: buildTeacherLedPromptContext(userRequirements),
   });
 
   if (!prompts) {

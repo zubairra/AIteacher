@@ -12,6 +12,7 @@ import {
   generateSceneActions,
   buildCompleteScene,
   buildVisionUserContent,
+  isTeacherLedRequirements,
   type SceneGenerationContext,
   type AgentInfo,
 } from '@openmaic/generation';
@@ -48,6 +49,7 @@ export async function POST(req: NextRequest) {
       previousSpeeches: incomingPreviousSpeeches,
       userProfile,
       languageDirective,
+      requirements,
     } = body as {
       outline: SceneOutline;
       allOutlines: SceneOutline[];
@@ -62,6 +64,7 @@ export async function POST(req: NextRequest) {
       previousSpeeches?: string[];
       userProfile?: string;
       languageDirective?: string;
+      requirements?: import('@/lib/types/generation').UserRequirements;
     };
 
     // Validate required fields
@@ -157,12 +160,17 @@ export async function POST(req: NextRequest) {
       | GeneratedInteractiveContent
       | GeneratedPBLContent;
 
-    const actions = await generateSceneActions(outline, generationContent, aiCall, {
-      ctx,
-      agents,
-      userProfile,
-      languageDirective,
-    });
+    // Teacher-led lessons are support material for a human presenter. The
+    // existing assembly pipeline still builds the Scene, but it must not create
+    // an AI narration track for this explicit mode.
+    const actions = isTeacherLedRequirements(requirements)
+      ? []
+      : await generateSceneActions(outline, generationContent, aiCall, {
+          ctx,
+          agents,
+          userProfile,
+          languageDirective,
+        });
 
     log.info(`Generated ${actions.length} actions for: "${outline.title}"`);
 

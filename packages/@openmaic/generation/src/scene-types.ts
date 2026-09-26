@@ -12,6 +12,7 @@ import type {
   WidgetConfigBase,
   WidgetType,
 } from '@openmaic/dsl';
+import type { TeacherNotes } from './outline-types.js';
 
 /** AI-generated slide payload before it is assembled into a scene. */
 export interface GeneratedSlideContent {
@@ -54,7 +55,10 @@ export type GeneratedSceneContent =
 export type CompleteSceneContent = SlideContent | QuizContent | InteractiveContent | PBLContent;
 
 /** Scene assembled by the package, including the originating outline identity. */
-export type CompleteScene = Scene<Action, CompleteSceneContent> & { outlineId: string };
+export type CompleteScene = Scene<Action, CompleteSceneContent> & {
+  outlineId: string;
+  teacherNotes?: TeacherNotes;
+};
 
 /** Widget configuration emitted by the model and normalized by the scene layer. */
 export type WidgetConfig = WidgetConfigBase;

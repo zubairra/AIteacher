@@ -32,6 +32,7 @@ export function buildCompleteScene(
 ): CompleteScene | null {
   const sceneId = options.sceneId ?? nanoid();
   const timestamps = { createdAt: Date.now(), updatedAt: Date.now() };
+  const teacherSupport = outline.teacherNotes ? { teacherNotes: outline.teacherNotes } : {};
 
   if (outline.type === 'slide' && 'elements' in content) {
     const defaultTheme: SlideTheme = {
@@ -59,6 +60,7 @@ export function buildCompleteScene(
       order: outline.order,
       content: { type: 'slide', canvas },
       actions,
+      ...teacherSupport,
       ...timestamps,
     };
   }
@@ -73,6 +75,7 @@ export function buildCompleteScene(
       order: outline.order,
       content: { type: 'quiz', questions: content.questions },
       actions,
+      ...teacherSupport,
       ...timestamps,
     };
   }
@@ -93,6 +96,7 @@ export function buildCompleteScene(
         widgetConfig: content.widgetConfig,
       },
       actions,
+      ...teacherSupport,
       ...timestamps,
     };
   }
@@ -107,6 +111,7 @@ export function buildCompleteScene(
       order: outline.order,
       content: { type: 'pbl', projectV2: content.projectV2 },
       actions,
+      ...teacherSupport,
       ...timestamps,
     };
   }

@@ -23,6 +23,7 @@ import {
   buildOutlinePrompt,
   uniquifyMediaElementIds,
   formatTeacherPersonaForPrompt,
+  buildTeacherLedPromptContext,
 } from '@openmaic/generation';
 import type { AgentInfo } from '@openmaic/generation';
 import { DEFAULT_LANGUAGE_DIRECTIVE } from '@openmaic/generation';
@@ -444,6 +445,7 @@ export async function POST(req: NextRequest) {
         mediaEnabled: mediaGenerationEnabled,
         teacherContext,
         userProfile: userProfileText,
+        teacherModeContext: buildTeacherLedPromptContext(requirements),
       });
     }
 

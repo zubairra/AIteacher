@@ -86,6 +86,12 @@ export type {
 } from './outline-generator.js';
 export { changeOutlineType } from './outline-type.js';
 export { uniquifyMediaElementIds } from './outline-media.js';
+export {
+  buildTeacherLedPromptContext,
+  isTeacherLedRequirements,
+  normalizeTeacherNotes,
+  teacherDurationGuidance,
+} from './teacher-mode.js';
 export { partitionImagesForVision } from './outline-formatters.js';
 export type { VisionImagePartition } from './outline-formatters.js';
 export { parseJsonResponse } from './json-repair.js';
@@ -106,6 +112,9 @@ export type {
   MediaGenerationRequest,
   PdfImage,
   SceneOutline,
+  TeacherLessonMetadata,
+  TeacherNotes,
+  TeachingStyle,
   UserRequirements,
   WidgetOutline,
   WidgetType,

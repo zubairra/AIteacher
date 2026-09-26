@@ -14,6 +14,11 @@ import {
 } from './outline-formatters.js';
 import { uniquifyMediaElementIds } from './outline-media.js';
 import type { ImageMapping, PdfImage, SceneOutline, UserRequirements } from './outline-types.js';
+import {
+  buildTeacherLedPromptContext,
+  isTeacherLedRequirements,
+  normalizeTeacherNotes,
+} from './teacher-mode.js';
 import type { AICallFn, GenerationResult } from './pipeline-types.js';
 import { buildPrompt, PROMPT_IDS } from './prompts/index.js';
 
@@ -107,6 +112,8 @@ export function buildOutlinePrompt(
     mediaEnabled,
     researchContext: context.researchContext || 'None',
     teacherContext: context.teacherContext || '',
+    teacherModeContext: buildTeacherLedPromptContext(requirements),
+    teacherMode: isTeacherLedRequirements(requirements),
   });
 
   if (!prompts) {
@@ -172,6 +179,7 @@ export async function generateSceneOutlinesFromRequirements(
       ...outline,
       id: outline.id || nanoid(),
       order: index + 1,
+      teacherNotes: normalizeTeacherNotes(outline.teacherNotes),
       // LLMs occasionally emit mediaGenerations as a string or object; every
       // downstream consumer requires an array, so drop non-array values here.
       ...(Array.isArray(outline.mediaGenerations) ? null : { mediaGenerations: undefined }),

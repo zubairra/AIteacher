@@ -28,6 +28,30 @@ export interface UserRequirements {
   webSearch?: boolean;
   interactiveMode?: boolean;
   taskEngineMode?: boolean;
+  generationMode?: 'teacher-led';
+  teacherLesson?: TeacherLessonMetadata;
+}
+
+export type TeachingStyle = 'balanced' | 'visual' | 'explanation-focused' | 'activity-heavy';
+
+export interface TeacherLessonMetadata {
+  version: 1;
+  mode: 'teacher-led';
+  subject: string;
+  grade: string;
+  topic: string;
+  durationMinutes: number;
+  curriculum?: string;
+  teachingStyle: TeachingStyle;
+  materialReferences?: string[];
+}
+
+export interface TeacherNotes {
+  version: 1;
+  teacherTip?: string;
+  commonMisconception?: string;
+  discussionPrompt?: string;
+  explanationNote?: string;
 }
 
 export interface WidgetOutline {
@@ -77,6 +101,7 @@ export interface SceneOutline {
   estimatedDuration?: number;
   order: number;
   languageNote?: string;
+  teacherNotes?: TeacherNotes;
   suggestedImageIds?: string[];
   mediaGenerations?: MediaGenerationRequest[];
   quizConfig?: {
