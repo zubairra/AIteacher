@@ -6,6 +6,10 @@
  */
 
 import { Stage, Scene } from '../types/stage';
+import {
+  parseTeacherLessonMetadata,
+  type TeacherLessonMetadata,
+} from '@/lib/teacher/lesson-request';
 import { ChatSession } from '../types/chat';
 import { db } from './database';
 import type { FolderRecord } from './database';
@@ -105,6 +109,7 @@ export interface StageListItem {
   updatedAt: number;
   interactiveMode?: boolean;
   taskEngineMode?: boolean;
+  teacherLesson?: TeacherLessonMetadata;
   /** Folder this course belongs to; undefined = unfiled. Device-local only. */
   folderId?: string;
 }
@@ -765,6 +770,7 @@ async function listOwnerStagesFromServer(): Promise<StageListItem[]> {
   const folderByStage = new Map(memberships.map((m) => [m.stageId, m.folderId]));
   return (body.stages as DocumentSummary[])
     .map((item) => {
+      const teacherLesson = parseTeacherLessonMetadata(item.teacherLesson);
       const base: StageListItem = {
         id: item.id,
         name: item.name,
@@ -774,6 +780,7 @@ async function listOwnerStagesFromServer(): Promise<StageListItem[]> {
         ...(item.description !== undefined ? { description: item.description } : {}),
         ...(item.interactiveMode !== undefined ? { interactiveMode: item.interactiveMode } : {}),
         ...(item.taskEngineMode !== undefined ? { taskEngineMode: item.taskEngineMode } : {}),
+        ...(teacherLesson ? { teacherLesson } : {}),
       };
       const folderId = folderByStage.get(item.id) ?? item.folderId;
       return folderId ? { ...base, folderId } : base;
@@ -807,8 +814,13 @@ export async function listStages(): Promise<StageListItem[]> {
     // not in the DocumentStore; join it in so callers can group courses.
     const memberships = await db.stageFolders.toArray();
     const folderByStage = new Map(memberships.map((m) => [m.stageId, m.folderId]));
+    const normalizedSummaries = summaries.map((summary) => {
+      const { teacherLesson: rawTeacherLesson, ...base } = summary;
+      const teacherLesson = parseTeacherLessonMetadata(rawTeacherLesson);
+      return { ...base, ...(teacherLesson ? { teacherLesson } : {}) };
+    });
     return [
-      ...summaries,
+      ...normalizedSummaries,
       ...legacyOnly
         .filter((stage) => stage !== null)
         .map((stage) => ({
@@ -822,9 +834,10 @@ export async function listStages(): Promise<StageListItem[]> {
           taskEngineMode: stage.taskEngineMode,
         })),
     ]
-      .map((item) =>
-        folderByStage.get(item.id) ? { ...item, folderId: folderByStage.get(item.id) } : item,
-      )
+      .map((item) => {
+        const folderId = folderByStage.get(item.id);
+        return folderId ? { ...item, folderId } : item;
+      })
       .sort((a, b) => b.updatedAt - a.updatedAt);
   } catch (error) {
     log.error('Failed to list stages:', error);

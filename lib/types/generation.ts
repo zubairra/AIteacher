@@ -7,6 +7,7 @@
 
 import type { ActionType } from './action';
 import type { MediaGenerationRequest } from '@/lib/media/types';
+import type { TeacherLessonMetadata, TeacherNotes } from '@/lib/teacher/lesson-request';
 
 // ==================== PDF Image Types ====================
 
@@ -105,6 +106,10 @@ export interface UserRequirements {
   webSearch?: boolean; // Enable web search for richer context
   interactiveMode?: boolean; // Enable Interactive Mode for interactive-first generation
   taskEngineMode?: boolean; // Enable vocational task-engine generation path
+  /** Explicit product mode. Absent preserves legacy OpenMAIC generation. */
+  generationMode?: 'teacher-led';
+  /** Validated teacher lesson context carried independently of free-form text. */
+  teacherLesson?: TeacherLessonMetadata;
 }
 
 // ==================== Stage 1 Output: Scene Outlines (Simplified) ====================
@@ -158,6 +163,8 @@ export interface SceneOutline {
   estimatedDuration?: number; // seconds
   order: number;
   languageNote?: string; // LLM-inferred language note for this scene
+  /** Teacher-only support generated for teacher-led lessons. */
+  teacherNotes?: TeacherNotes;
   // Suggested image IDs (from PDF-extracted images)
   suggestedImageIds?: string[]; // e.g., ["img_1", "img_3"]
   // AI-generated media requests (when PDF images are insufficient)

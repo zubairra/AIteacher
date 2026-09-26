@@ -102,6 +102,8 @@ export interface DocumentSummary {
   description?: string;
   interactiveMode?: boolean;
   taskEngineMode?: boolean;
+  /** Optional app-owned lesson metadata copied from the Stage JSON. */
+  teacherLesson?: unknown;
   createdAt: number;
   updatedAt: number;
   sceneCount: number;

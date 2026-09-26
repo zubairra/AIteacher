@@ -343,6 +343,7 @@ export class BrowserDocumentStore<
           description: stage.description,
           interactiveMode: stage.interactiveMode,
           taskEngineMode: stage.taskEngineMode,
+          teacherLesson: (stage as TStage & { teacherLesson?: unknown }).teacherLesson,
           createdAt: stage.createdAt,
           updatedAt: stage.updatedAt,
           sceneCount,

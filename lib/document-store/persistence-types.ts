@@ -1,11 +1,8 @@
 import type { MaicDocument } from '@openmaic/storage';
-import type { Stage } from '@openmaic/dsl';
-
 import type { SceneOutline } from '@/lib/types/generation';
-import type { AppScene } from '@/lib/types/stage';
+import type { AppScene, AppStage } from '@/lib/types/stage';
 
-/** App-owned stage shape. Device playback position is not document metadata. */
-export type AppStage = Stage;
+export type { AppStage } from '@/lib/types/stage';
 
 /**
  * Who produces the scenes of this course.

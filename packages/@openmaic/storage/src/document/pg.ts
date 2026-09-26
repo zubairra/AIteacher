@@ -433,6 +433,7 @@ interface SummaryRow extends Record<string, unknown> {
   description: string | null;
   interactive_mode: boolean | null;
   task_engine_mode: boolean | null;
+  teacher_lesson: unknown | null;
   created_at: number | string;
   updated_at: number | string;
   scene_count: number | string;
@@ -1038,6 +1039,7 @@ export class PgDocumentStore<TScene extends SceneLike = Scene, TStage extends St
               stages.description,
               stages.interactive_mode,
               stages.task_engine_mode,
+              stages.data -> 'teacherLesson' AS teacher_lesson,
               stages.created_at,
               stages.updated_at,
               stages.folder_id,
@@ -1055,6 +1057,7 @@ export class PgDocumentStore<TScene extends SceneLike = Scene, TStage extends St
       ...(row.description === null ? {} : { description: row.description }),
       ...(row.interactive_mode === null ? {} : { interactiveMode: row.interactive_mode }),
       ...(row.task_engine_mode === null ? {} : { taskEngineMode: row.task_engine_mode }),
+      ...(row.teacher_lesson === null ? {} : { teacherLesson: row.teacher_lesson }),
       createdAt: Number(row.created_at),
       updatedAt: Number(row.updated_at),
       sceneCount: Number(row.scene_count),

@@ -14,11 +14,13 @@ import type {
   PBLContent as DslPBLContent,
   Scene as DslScene,
   SceneContent as DslSceneContent,
+  Stage as DslStage,
 } from '@openmaic/dsl';
 import type { Action } from '@/lib/types/action';
 import type { WidgetConfig } from '@/lib/types/widgets';
 import type { PBLProjectConfig } from '@/lib/pbl/legacy/read';
 import type { PBLProjectV2 } from '@/lib/pbl/v2/types';
+import type { TeacherLessonMetadata, TeacherNotes } from '@/lib/teacher/lesson-request';
 
 export type {
   SceneType,
@@ -28,12 +30,19 @@ export type {
   VideoManifest,
   GeneratedAgentConfig,
   MultiAgentConfig,
-  Stage,
   SlideContent,
   QuizOption,
   QuizQuestion,
   QuizContent,
 } from '@openmaic/dsl';
+
+/** App-owned, additive metadata for teacher-created lesson documents. */
+export type AppStage = DslStage & {
+  teacherLesson?: TeacherLessonMetadata;
+};
+
+/** Existing callers keep importing `Stage` from the app type boundary. */
+export type Stage = AppStage;
 
 // The two discriminant guards are runtime functions, so they must be value
 // re-exported — a bare `export type {}` erases them and leaves the import as
@@ -107,6 +116,8 @@ export type AppScene = DslScene<Action, SceneContent> & {
    * scene-derived outline.
    */
   outlineId?: string;
+  /** Private support for the human teacher; never intended as projected content. */
+  teacherNotes?: TeacherNotes;
 };
 export type Scene = AppScene;
 

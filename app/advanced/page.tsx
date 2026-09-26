@@ -123,7 +123,7 @@ const initialFormState: FormState = {
   vocationalTestMode: false,
 };
 
-function HomePage() {
+function LegacyOpenMaicHomePage() {
   const { t } = useI18n();
   const { theme, setTheme } = useTheme();
   const router = useRouter();
@@ -1883,5 +1883,5 @@ function ClassroomCard({
 }
 
 export default function Page() {
-  return <HomePage />;
+  return <LegacyOpenMaicHomePage />;
 }
