@@ -61,6 +61,7 @@ import {
 } from './types';
 import { StepVisualizer } from './components/visualizers';
 import { resolveTaskEngineModeFromOutlineDoneEvent } from './vocational-mode';
+import { parseTeacherLessonMetadata } from '@/lib/teacher/lesson-request';
 
 const log = createLogger('GenerationPreview');
 const OUTLINE_REVIEW_AUTO_CONTINUE_MS = 2500;
@@ -534,6 +535,7 @@ function GenerationPreviewContent() {
 
       // Create stage client-side
       const stageId = nanoid(10);
+      const teacherLesson = parseTeacherLessonMetadata(currentSession.requirements.teacherLesson);
       const stage: Stage = {
         id: stageId,
         name: extractTopicFromRequirement(currentSession.requirements.requirement),
@@ -543,6 +545,7 @@ function GenerationPreviewContent() {
         updatedAt: Date.now(),
         interactiveMode: !!currentSession.requirements.interactiveMode,
         taskEngineMode: currentSession.taskEngineMode === true,
+        ...(teacherLesson ? { teacherLesson } : {}),
       };
 
       // ── Generate outlines first (infers languageDirective) ──
@@ -743,7 +746,7 @@ function GenerationPreviewContent() {
         persona?: string;
       }> = [];
 
-      if (settings.agentMode === 'auto') {
+      if (!teacherLesson && settings.agentMode === 'auto') {
         const agentStepIdx = activeSteps.findIndex((s) => s.id === 'agent-generation');
         if (agentStepIdx >= 0) setCurrentStepIndex(agentStepIdx);
 
@@ -914,7 +917,7 @@ function GenerationPreviewContent() {
             }));
           stage.agentIds = fallbackIds;
         }
-      } else {
+      } else if (!teacherLesson) {
         // Preset mode — use selected agents (include persona)
         // Filter out stale generated agent IDs that may linger in settings
         const registry = useAgentRegistry.getState();
@@ -932,6 +935,10 @@ function GenerationPreviewContent() {
             persona: a!.persona,
           }));
         stage.agentIds = presetAgentIds;
+      } else {
+        // Teacher-led lessons are presented by the human teacher. Do not spend
+        // time generating or attaching an AI classroom roster.
+        stage.agentIds = [];
       }
 
       // Move to scene generation step
@@ -1002,6 +1009,7 @@ function GenerationPreviewContent() {
           previousSpeeches: [],
           userProfile,
           languageDirective,
+          requirements: currentSession.requirements,
         },
         signal,
         FOREGROUND_SCENE_RETRY_OPTIONS,
@@ -1046,12 +1054,13 @@ function GenerationPreviewContent() {
           agents,
           userProfile,
           languageDirective,
+          requirements: currentSession.requirements,
         }),
       );
 
       sessionStorage.removeItem('generationSession');
       await store.saveToStorage();
-      router.push(`/classroom/${stage.id}`);
+      router.push(teacherLesson ? `/lessons/${stage.id}/edit` : `/classroom/${stage.id}`);
     } catch (err) {
       setIsOutlineStreaming(false);
       // AbortError is expected when navigating away — don't show as error

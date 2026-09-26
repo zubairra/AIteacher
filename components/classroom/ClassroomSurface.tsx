@@ -65,9 +65,12 @@ const LOAD_UNAVAILABLE_ERROR = 'load-unavailable';
 export function ClassroomSurface({
   classroomId,
   variant = 'page',
+  reviewMode = false,
 }: {
   readonly classroomId: string;
   readonly variant?: 'page' | 'pane';
+  /** Teacher lesson review uses the existing editor as its primary surface. */
+  readonly reviewMode?: boolean;
 }) {
   const { loadFromStorage } = useStageStore();
   const loadedClassroomId = useStageStore((s) => s.stage?.id ?? null);
@@ -370,6 +373,7 @@ export function ClassroomSurface({
           agents: params.agents,
           userProfile: params.userProfile,
           languageDirective: params.languageDirective || stage.languageDirective,
+          requirements: params.requirements,
           taskEngineMode: stage.taskEngineMode,
         });
 
@@ -492,6 +496,7 @@ export function ClassroomSurface({
           ) : (
             <Stage
               classroomId={classroomId}
+              reviewMode={reviewMode}
               onRetryOutline={mayGenerate ? retrySingleOutline : undefined}
             />
           )}

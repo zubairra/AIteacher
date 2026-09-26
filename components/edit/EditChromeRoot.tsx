@@ -13,6 +13,7 @@ import { useStageStore } from '@/lib/store/stage';
 import { useInWorkbenchPanel } from '@/lib/workbench/panel-context';
 import { supportsNarrationTimeline } from './scene-timeline';
 import type { Scene } from '@/lib/types/stage';
+import { TeacherNotesPanel } from '@/components/teacher/TeacherNotesPanel';
 
 interface EditChromeRootProps {
   readonly scene: Scene;
@@ -108,20 +109,23 @@ export function EditChromeRoot({ scene, isEditable, onToggleEditMode }: EditChro
   );
 
   return (
-    <EditShell
-      scene={scene}
-      leftRail={<SlideNavRail />}
-      bottomRail={
-        timelineEnabled ? (
-          <EditDock sceneId={scene.id} sceneType={scene.type} pager={pager} />
-        ) : undefined
-      }
-      commandTrailing={headerControls}
-      // The pager normally lives in the dock's global edit bar (handed to `EditDock`
-      // above). Only a scene type that gets no dock at all keeps the floating
-      // form — otherwise those scenes would lose paging entirely.
-      pager={timelineEnabled ? undefined : pager}
-      hideCommandBar={inWorkbenchPanel}
-    />
+    <div className="relative flex min-h-0 min-w-0 flex-1">
+      <EditShell
+        scene={scene}
+        leftRail={<SlideNavRail />}
+        bottomRail={
+          timelineEnabled ? (
+            <EditDock sceneId={scene.id} sceneType={scene.type} pager={pager} />
+          ) : undefined
+        }
+        commandTrailing={headerControls}
+        // The pager normally lives in the dock's global edit bar (handed to `EditDock`
+        // above). Only a scene type that gets no dock at all keeps the floating
+        // form — otherwise those scenes would lose paging entirely.
+        pager={timelineEnabled ? undefined : pager}
+        hideCommandBar={inWorkbenchPanel}
+      />
+      <TeacherNotesPanel notes={scene.teacherNotes} />
+    </div>
   );
 }

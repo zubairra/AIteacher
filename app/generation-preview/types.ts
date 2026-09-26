@@ -141,7 +141,12 @@ export const getActiveSteps = (session: GenerationSessionState | null) => {
       );
     }
     if (step.id === 'web-search') return !!session?.requirements?.webSearch;
-    if (step.id === 'agent-generation') return useSettingsStore.getState().agentMode === 'auto';
+    if (step.id === 'agent-generation') {
+      return (
+        session?.requirements?.generationMode !== 'teacher-led' &&
+        useSettingsStore.getState().agentMode === 'auto'
+      );
+    }
     return true;
   });
 };

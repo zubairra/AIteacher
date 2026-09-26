@@ -62,15 +62,17 @@ import { exitProPlaybackToStandalone } from '@/lib/workbench/pro-playback-exit';
 export function Stage({
   classroomId,
   onRetryOutline,
+  reviewMode = false,
 }: {
   classroomId?: string;
   onRetryOutline?: (outlineId: string) => Promise<void>;
+  reviewMode?: boolean;
 }) {
   const { mode, setMode, scenes, currentSceneId, generatingOutlines, stage } = useStageStore();
   const router = useRouter();
   const enteringWorkbench = useRef(false);
   const proWorkbenchFlag = isProWorkbenchEnabled();
-  const editorEnabled = isMaicEditorEnabled();
+  const editorEnabled = isMaicEditorEnabled() || reviewMode;
   const [proRuntime, setProRuntime] = useState<'pending' | 'on' | 'off'>(
     proWorkbenchFlag ? 'pending' : 'off',
   );
@@ -155,7 +157,20 @@ export function Stage({
     generatingOutlineCount: generatingOutlines.length,
     hasCurrentScene: !!currentScene,
   });
-  const chromeEditable = hosted ? hostedSceneEditable : isEditable;
+  const reviewSceneEditable = isHostedSceneEditable({
+    editorEnabled,
+    isOwner: canEditOwnedStage,
+    stageMatchesHost: currentStageMatchesHost,
+    currentSceneId,
+    sceneCount: scenes.length,
+    generatingOutlineCount: generatingOutlines.length,
+    hasCurrentScene: !!currentScene,
+  });
+  const chromeEditable = reviewMode
+    ? reviewSceneEditable
+    : hosted
+      ? hostedSceneEditable
+      : isEditable;
   // Seeded from the module-level registry rather than always starting at
   // `idle`: once the editor chunk has been imported in this tab, a remount
   // (course switch, reopened tab) must resolve to the edit chrome during the
@@ -240,13 +255,29 @@ export function Stage({
     });
   }, [mode, setMode]);
 
+  // The teacher workflow lands directly in the established editor. Later
+  // scenes may continue generating, but a materialized current scene is safe
+  // to review and edit immediately, matching the workspace's page-level gate.
+  useEffect(() => {
+    if (!reviewMode || !reviewSceneEditable || mode === 'edit') return;
+    let cancelled = false;
+    void preloadEditor()
+      .then(() => {
+        if (!cancelled) setMode('edit');
+      })
+      .catch((error) => console.error('[Stage] teacher review preload failed', error));
+    return () => {
+      cancelled = true;
+    };
+  }, [mode, reviewMode, reviewSceneEditable, setMode]);
+
   // Auto-exit edit mode when the current scene becomes uneditable
   // (pending generation, no scenes, currently generating).
   useEffect(() => {
-    if (mode === 'edit' && !isEditable) {
+    if (mode === 'edit' && !(reviewMode ? reviewSceneEditable : isEditable)) {
       setMode('playback');
     }
-  }, [mode, isEditable, setMode]);
+  }, [mode, isEditable, reviewMode, reviewSceneEditable, setMode]);
 
   // Non-owners and transport-fenced owners get no Pro toggle at all: without a
   // handler the Header/CommandBar omit the whole switch. Editable owners keep
