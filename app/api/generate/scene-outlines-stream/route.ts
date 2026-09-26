@@ -443,9 +443,10 @@ export async function POST(req: NextRequest) {
         imageEnabled: imageGenerationEnabled,
         videoEnabled: videoGenerationEnabled,
         mediaEnabled: mediaGenerationEnabled,
-        teacherContext,
+        teacherContext: [teacherContext, buildTeacherLedPromptContext(requirements)]
+          .filter(Boolean)
+          .join('\n\n'),
         userProfile: userProfileText,
-        teacherModeContext: buildTeacherLedPromptContext(requirements),
       });
     }
 

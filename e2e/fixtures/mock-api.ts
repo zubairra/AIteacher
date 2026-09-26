@@ -72,7 +72,16 @@ export class MockApi {
       route.fulfill({
         status: 200,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ providers: {} }),
+        body: JSON.stringify({
+          providers: {},
+          tts: {},
+          asr: {},
+          pdf: {},
+          image: {},
+          video: {},
+          webSearch: {},
+          generation: {},
+        }),
       });
     });
   }

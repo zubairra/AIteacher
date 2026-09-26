@@ -101,6 +101,7 @@ export function buildOutlinePrompt(
   const mediaEnabled = imageEnabled || videoEnabled;
   const hasSourceImages = (pdfImages?.length ?? 0) > 0;
 
+  const teacherModeContext = buildTeacherLedPromptContext(requirements);
   const prompts = buildPrompt(PROMPT_IDS.REQUIREMENTS_TO_OUTLINES, {
     requirement: requirements.requirement,
     pdfContent: pdfText ? pdfText.substring(0, MAX_PDF_CONTENT_CHARS) : 'None',
@@ -111,8 +112,7 @@ export function buildOutlinePrompt(
     videoEnabled,
     mediaEnabled,
     researchContext: context.researchContext || 'None',
-    teacherContext: context.teacherContext || '',
-    teacherModeContext: buildTeacherLedPromptContext(requirements),
+    teacherContext: [context.teacherContext, teacherModeContext].filter(Boolean).join('\n\n'),
     teacherMode: isTeacherLedRequirements(requirements),
   });
 

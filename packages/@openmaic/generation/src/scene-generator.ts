@@ -726,8 +726,9 @@ async function generateSlideContent(
     assignedImages: assignedImagesText,
     canvas_width: canvasWidth,
     canvas_height: canvasHeight,
-    teacherContext,
-    teacherModeContext: buildTeacherLedPromptContext(userRequirements),
+    teacherContext: [teacherContext, buildTeacherLedPromptContext(userRequirements)]
+      .filter(Boolean)
+      .join('\n\n'),
     languageDirective: languageDirective || '',
     imageElementEnabled,
     generatedImageEnabled,
@@ -879,13 +880,14 @@ async function generateQuizContent(
 
   const prompts = buildPrompt(PROMPT_IDS.QUIZ_CONTENT, {
     title: outline.title,
-    description: outline.description,
+    description: [outline.description, buildTeacherLedPromptContext(userRequirements)]
+      .filter(Boolean)
+      .join('\n\n'),
     keyPoints: (outline.keyPoints || []).map((p, i) => `${i + 1}. ${p}`).join('\n'),
     questionCount: quizConfig.questionCount,
     difficulty: quizConfig.difficulty,
     questionTypes: quizConfig.questionTypes.join(', '),
     languageDirective: languageDirective || '',
-    teacherModeContext: buildTeacherLedPromptContext(userRequirements),
   });
 
   if (!prompts) {

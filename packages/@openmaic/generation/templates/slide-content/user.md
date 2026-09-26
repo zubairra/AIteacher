@@ -9,8 +9,6 @@
 
 {{teacherContext}}
 
-{{teacherModeContext}}
-
 ## Available Resources
 
 {{#if mediaElementEnabled}}
