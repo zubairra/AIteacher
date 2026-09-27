@@ -60,7 +60,7 @@ export function TeacherTeachMode() {
   const prepareSceneChange = useCallback(() => {
     setAnnotationTool('off');
     setNotesOpen(false);
-  }, []);
+  }, [setAnnotationTool, setNotesOpen]);
 
   const previous = useCallback(() => {
     if (navigation.previousSceneId) {
@@ -82,7 +82,7 @@ export function TeacherTeachMode() {
     };
     document.addEventListener('fullscreenchange', onFullscreenChange);
     return () => document.removeEventListener('fullscreenchange', onFullscreenChange);
-  }, []);
+  }, [setFullscreenNotice]);
 
   const toggleFullscreen = useCallback(async () => {
     const root = teachRootRef.current;
@@ -91,7 +91,7 @@ export function TeacherTeachMode() {
     if (result === 'unavailable' || result === 'denied') {
       setFullscreenNotice('Fullscreen is unavailable. Teach Mode remains active in this window.');
     }
-  }, []);
+  }, [setFullscreenNotice]);
 
   const exitTeaching = useCallback(async () => {
     if (document.fullscreenElement && document.exitFullscreen) {
@@ -183,6 +183,7 @@ export function TeacherTeachMode() {
       {fullscreenNotice ? (
         <div
           role="status"
+          data-testid="teach-fullscreen-notice"
           className="absolute left-1/2 top-3 z-50 -translate-x-1/2 rounded-xl bg-amber-100 px-4 py-2 text-sm font-semibold text-amber-950 shadow-lg"
         >
           {fullscreenNotice}

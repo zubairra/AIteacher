@@ -111,12 +111,21 @@ test.describe('Smart-board Teach Mode', () => {
     await expect(page.getByRole('button', { name: 'Clear annotations' })).toBeDisabled();
 
     await page.getByRole('button', { name: 'Enter fullscreen' }).click();
+    await expect
+      .poll(async () => {
+        const active = await page.evaluate(() => document.fullscreenElement !== null);
+        const fallback = await page.getByTestId('teach-fullscreen-notice').isVisible();
+        return active || fallback;
+      })
+      .toBe(true);
     const fullscreenActive = await page.evaluate(() => document.fullscreenElement !== null);
     if (fullscreenActive) {
       await page.getByRole('button', { name: 'Exit fullscreen' }).click();
       await expect.poll(() => page.evaluate(() => document.fullscreenElement === null)).toBe(true);
     } else {
-      await expect(page.getByRole('status')).toContainText('Teach Mode remains active');
+      await expect(page.getByTestId('teach-fullscreen-notice')).toContainText(
+        'Teach Mode remains active',
+      );
     }
 
     await page.reload();

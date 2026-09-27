@@ -32,7 +32,6 @@ export function AnnotationOverlay({ sceneId, tool, state, onStateChange }: Annot
   const frameRef = useRef(0);
   const strokes = getSceneAnnotationHistory(state, sceneId).strokes;
   const strokesRef = useRef(strokes);
-  strokesRef.current = strokes;
 
   const draw = useCallback(() => {
     frameRef.current = 0;
@@ -71,7 +70,10 @@ export function AnnotationOverlay({ sceneId, tool, state, onStateChange }: Annot
     return () => observer.disconnect();
   }, [scheduleDraw]);
 
-  useEffect(() => scheduleDraw(), [sceneId, scheduleDraw, strokes]);
+  useEffect(() => {
+    strokesRef.current = strokes;
+    scheduleDraw();
+  }, [sceneId, scheduleDraw, strokes]);
 
   useEffect(
     () => () => {
