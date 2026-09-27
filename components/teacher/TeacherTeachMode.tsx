@@ -1,13 +1,25 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, ArrowRight, Eraser, LogOut, Pencil, Redo2, Trash2, Undo2 } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  ArrowLeft,
+  ArrowRight,
+  Eraser,
+  LogOut,
+  Maximize2,
+  Minimize2,
+  NotebookPen,
+  Pencil,
+  Redo2,
+  Trash2,
+  Undo2,
+} from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { ContainBox } from '@/components/edit/ContainBox';
 import { InteractiveIframeHost } from '@/components/scene-renderers/InteractiveIframeHost';
 import { SceneRenderer } from '@/components/stage/scene-renderer';
 import { SceneProvider } from '@/lib/contexts/scene-context';
-import { parseTeacherLessonMetadata } from '@/lib/teacher/lesson-request';
+import { parseTeacherLessonMetadata, parseTeacherNotes } from '@/lib/teacher/lesson-request';
 import { getTeacherNavigationState, isEditableShortcutTarget } from '@/lib/teacher/teach-mode';
 import { useStageStore } from '@/lib/store/stage';
 import { AnnotationOverlay } from '@/components/teacher/AnnotationOverlay';
@@ -19,15 +31,21 @@ import {
   undoSceneAnnotations,
   type AnnotationTool,
 } from '@/lib/teacher/annotations';
+import { TeacherNotesContent } from '@/components/teacher/TeacherNotesPanel';
+import { toggleTeacherFullscreen } from '@/lib/teacher/fullscreen';
 
 export function TeacherTeachMode() {
   const router = useRouter();
+  const teachRootRef = useRef<HTMLElement>(null);
   const stage = useStageStore.use.stage();
   const scenes = useStageStore.use.scenes();
   const currentSceneId = useStageStore.use.currentSceneId();
   const setCurrentSceneId = useStageStore.use.setCurrentSceneId();
   const [annotationTool, setAnnotationTool] = useState<AnnotationTool>('off');
   const [annotations, setAnnotations] = useState(createTeacherAnnotationState);
+  const [notesOpen, setNotesOpen] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [fullscreenNotice, setFullscreenNotice] = useState<string | null>(null);
   const metadata = parseTeacherLessonMetadata(stage?.teacherLesson);
   const navigation = useMemo(
     () => getTeacherNavigationState(scenes, currentSceneId),
@@ -37,13 +55,50 @@ export function TeacherTeachMode() {
   const annotationHistory = currentScene
     ? getSceneAnnotationHistory(annotations, currentScene.id)
     : undefined;
+  const teacherNotes = parseTeacherNotes(currentScene?.teacherNotes);
+
+  const prepareSceneChange = useCallback(() => {
+    setAnnotationTool('off');
+    setNotesOpen(false);
+  }, []);
 
   const previous = useCallback(() => {
-    if (navigation.previousSceneId) setCurrentSceneId(navigation.previousSceneId);
-  }, [navigation.previousSceneId, setCurrentSceneId]);
+    if (navigation.previousSceneId) {
+      prepareSceneChange();
+      setCurrentSceneId(navigation.previousSceneId);
+    }
+  }, [navigation.previousSceneId, prepareSceneChange, setCurrentSceneId]);
   const next = useCallback(() => {
-    if (navigation.nextSceneId) setCurrentSceneId(navigation.nextSceneId);
-  }, [navigation.nextSceneId, setCurrentSceneId]);
+    if (navigation.nextSceneId) {
+      prepareSceneChange();
+      setCurrentSceneId(navigation.nextSceneId);
+    }
+  }, [navigation.nextSceneId, prepareSceneChange, setCurrentSceneId]);
+
+  useEffect(() => {
+    const onFullscreenChange = () => {
+      setIsFullscreen(document.fullscreenElement === teachRootRef.current);
+      setFullscreenNotice(null);
+    };
+    document.addEventListener('fullscreenchange', onFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', onFullscreenChange);
+  }, []);
+
+  const toggleFullscreen = useCallback(async () => {
+    const root = teachRootRef.current;
+    if (!root) return;
+    const result = await toggleTeacherFullscreen(root);
+    if (result === 'unavailable' || result === 'denied') {
+      setFullscreenNotice('Fullscreen is unavailable. Teach Mode remains active in this window.');
+    }
+  }, []);
+
+  const exitTeaching = useCallback(async () => {
+    if (document.fullscreenElement && document.exitFullscreen) {
+      await document.exitFullscreen().catch(() => undefined);
+    }
+    router.push(stage ? `/lessons/${stage.id}/edit` : '/lessons');
+  }, [router, stage]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -121,9 +176,18 @@ export function TeacherTeachMode() {
 
   return (
     <main
+      ref={teachRootRef}
       className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-slate-950 text-white"
       data-testid="teacher-teach-mode"
     >
+      {fullscreenNotice ? (
+        <div
+          role="status"
+          className="absolute left-1/2 top-3 z-50 -translate-x-1/2 rounded-xl bg-amber-100 px-4 py-2 text-sm font-semibold text-amber-950 shadow-lg"
+        >
+          {fullscreenNotice}
+        </div>
+      ) : null}
       <div className="relative min-h-0 flex-1 overflow-hidden p-2 sm:p-3">
         {interactive ? (
           <div className="relative h-full w-full overflow-hidden rounded-xl bg-white shadow-2xl">
@@ -212,6 +276,28 @@ export function TeacherTeachMode() {
         </div>
         <button
           type="button"
+          onClick={() => setNotesOpen((open) => !open)}
+          disabled={!teacherNotes}
+          aria-pressed={notesOpen}
+          className={toolButtonClass(notesOpen)}
+        >
+          <NotebookPen className="size-5" aria-hidden="true" />
+          <span className="hidden xl:inline">Notes</span>
+        </button>
+        <button
+          type="button"
+          onClick={toggleFullscreen}
+          className={toolButtonClass(false)}
+          aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+        >
+          {isFullscreen ? (
+            <Minimize2 className="size-5" aria-hidden="true" />
+          ) : (
+            <Maximize2 className="size-5" aria-hidden="true" />
+          )}
+        </button>
+        <button
+          type="button"
           onClick={next}
           disabled={!navigation.nextSceneId}
           className="flex min-h-14 min-w-14 items-center justify-center gap-2 rounded-xl bg-white/10 px-4 text-base font-semibold hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-35 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
@@ -222,13 +308,21 @@ export function TeacherTeachMode() {
         </button>
         <button
           type="button"
-          onClick={() => router.push(`/lessons/${stage.id}/edit`)}
+          onClick={exitTeaching}
           className="flex min-h-14 items-center justify-center gap-2 rounded-xl border border-white/15 px-4 font-semibold hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
         >
           <LogOut className="size-5" aria-hidden="true" />
           <span className="hidden lg:inline">Exit Teaching</span>
         </button>
       </nav>
+      {notesOpen && teacherNotes ? (
+        <TeacherNotesContent
+          notes={teacherNotes}
+          onClose={() => setNotesOpen(false)}
+          heading="Teacher Notes — quick peek"
+          className="absolute bottom-24 right-4 z-50 max-h-[calc(100%-7rem)] w-[min(24rem,calc(100%-2rem))]"
+        />
+      ) : null}
       <InteractiveIframeHost />
     </main>
   );

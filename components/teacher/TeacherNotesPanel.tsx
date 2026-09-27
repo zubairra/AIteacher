@@ -1,10 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Lightbulb, MessageCircleQuestion, NotebookPen, TriangleAlert, X } from 'lucide-react';
 import type { TeacherNotes } from '@/lib/teacher/lesson-request';
 
-const entries = [
+export const teacherNoteEntries = [
   ['teacherTip', 'Teacher tip', Lightbulb],
   ['commonMisconception', 'Common misconception', TriangleAlert],
   ['discussionPrompt', 'Discussion prompt', MessageCircleQuestion],
@@ -14,7 +14,7 @@ const entries = [
 export function TeacherNotesPanel({ notes }: { notes?: TeacherNotes }) {
   const [open, setOpen] = useState(false);
   if (!notes) return null;
-  const visible = entries.filter(([key]) => notes[key]);
+  const visible = teacherNoteEntries.filter(([key]) => notes[key]);
   if (visible.length === 0) return null;
 
   return (
@@ -29,36 +29,57 @@ export function TeacherNotesPanel({ notes }: { notes?: TeacherNotes }) {
         Teacher Notes
       </button>
       {open ? (
-        <aside
-          className="mt-2 max-h-[calc(100vh-8rem)] w-[min(22rem,calc(100vw-2rem))] overflow-y-auto rounded-2xl border border-slate-200 bg-white p-4 shadow-xl dark:border-slate-700 dark:bg-slate-900"
-          aria-label="Teacher notes"
-        >
-          <div className="mb-3 flex items-center justify-between gap-3">
-            <h2 className="font-semibold">Teacher Notes</h2>
-            <button
-              type="button"
-              onClick={() => setOpen(false)}
-              aria-label="Close teacher notes"
-              className="grid size-9 place-items-center rounded-lg hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-violet-600 dark:hover:bg-slate-800"
-            >
-              <X className="size-4" aria-hidden="true" />
-            </button>
-          </div>
-          <div className="space-y-3">
-            {visible.map(([key, label, Icon]) => (
-              <section key={key} className="rounded-xl bg-slate-50 p-3 dark:bg-slate-800/70">
-                <h3 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-violet-700 dark:text-violet-200">
-                  <Icon className="size-4" aria-hidden="true" />
-                  {label}
-                </h3>
-                <p className="mt-2 text-sm leading-6 text-slate-700 dark:text-slate-200">
-                  {notes[key]}
-                </p>
-              </section>
-            ))}
-          </div>
-        </aside>
+        <TeacherNotesContent
+          notes={notes}
+          onClose={() => setOpen(false)}
+          className="mt-2 max-h-[calc(100vh-8rem)] w-[min(22rem,calc(100vw-2rem))]"
+        />
       ) : null}
     </div>
+  );
+}
+
+export function TeacherNotesContent({
+  notes,
+  onClose,
+  className,
+  heading = 'Teacher Notes',
+}: {
+  readonly notes: TeacherNotes;
+  readonly onClose: () => void;
+  readonly className?: string;
+  readonly heading?: ReactNode;
+}) {
+  const visible = teacherNoteEntries.filter(([key]) => notes[key]);
+  return (
+    <aside
+      className={`overflow-y-auto rounded-2xl border border-slate-200 bg-white p-4 text-slate-950 shadow-xl dark:border-slate-700 dark:bg-slate-900 dark:text-white ${className ?? ''}`}
+      aria-label="Teacher notes"
+    >
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <h2 className="font-semibold">{heading}</h2>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close teacher notes"
+          className="grid size-11 place-items-center rounded-lg hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-violet-600 dark:hover:bg-slate-800"
+        >
+          <X className="size-5" aria-hidden="true" />
+        </button>
+      </div>
+      <div className="space-y-3">
+        {visible.map(([key, label, Icon]) => (
+          <section key={key} className="rounded-xl bg-slate-50 p-3 dark:bg-slate-800/70">
+            <h3 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-violet-700 dark:text-violet-200">
+              <Icon className="size-4" aria-hidden="true" />
+              {label}
+            </h3>
+            <p className="mt-2 text-sm leading-6 text-slate-700 dark:text-slate-200">
+              {notes[key]}
+            </p>
+          </section>
+        ))}
+      </div>
+    </aside>
   );
 }
