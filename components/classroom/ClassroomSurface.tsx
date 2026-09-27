@@ -53,6 +53,7 @@ import {
   shouldResumeClassroomGeneration,
 } from '@/lib/classroom/progressive-load-policy';
 import { useClassroomSession } from '@/lib/classroom/use-classroom-session';
+import { TeacherTeachMode } from '@/components/teacher/TeacherTeachMode';
 
 const log = createLogger('Classroom');
 
@@ -66,11 +67,14 @@ export function ClassroomSurface({
   classroomId,
   variant = 'page',
   reviewMode = false,
+  teachMode = false,
 }: {
   readonly classroomId: string;
   readonly variant?: 'page' | 'pane';
   /** Teacher lesson review uses the existing editor as its primary surface. */
   readonly reviewMode?: boolean;
+  /** Dedicated human-operated smart-board presentation surface. */
+  readonly teachMode?: boolean;
 }) {
   const { loadFromStorage } = useStageStore();
   const loadedClassroomId = useStageStore((s) => s.stage?.id ?? null);
@@ -493,6 +497,8 @@ export function ClassroomSurface({
                 </button>
               </div>
             </div>
+          ) : teachMode ? (
+            <TeacherTeachMode />
           ) : (
             <Stage
               classroomId={classroomId}

@@ -30,6 +30,8 @@ import { useWorkbenchStore } from '@/lib/workbench/session-store';
 import { useWorkbenchPanelState } from '@/lib/workbench/panel-context';
 import { workspaceHref } from '@/lib/workbench/workspace-panes';
 import { exitProPlaybackToStandalone } from '@/lib/workbench/pro-playback-exit';
+import { parseTeacherLessonMetadata } from '@/lib/teacher/lesson-request';
+import { TeacherReviewActions } from '@/components/teacher/TeacherReviewActions';
 
 /**
  * Stage — top-level classroom container. Standalone classrooms dispatch
@@ -418,6 +420,9 @@ export function Stage({
           and there is no longer an "agent modified this page" banner or a manual
           reload entry. */}
       {classroomChrome}
+      {reviewMode && stage && parseTeacherLessonMetadata(stage.teacherLesson) ? (
+        <TeacherReviewActions lessonId={stage.id} />
+      ) : null}
       {/* Full-screen playback steps the workspace aside; the return to the
           conversation lives in the classroom header's left slot (passed as
           `headerBackControl` above), so it never floats over the courseware.

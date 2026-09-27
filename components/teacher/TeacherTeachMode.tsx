@@ -1,0 +1,158 @@
+'use client';
+
+import { useCallback, useEffect, useMemo } from 'react';
+import { ArrowLeft, ArrowRight, LogOut } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { ContainBox } from '@/components/edit/ContainBox';
+import { InteractiveIframeHost } from '@/components/scene-renderers/InteractiveIframeHost';
+import { SceneRenderer } from '@/components/stage/scene-renderer';
+import { SceneProvider } from '@/lib/contexts/scene-context';
+import { parseTeacherLessonMetadata } from '@/lib/teacher/lesson-request';
+import { getTeacherNavigationState, isEditableShortcutTarget } from '@/lib/teacher/teach-mode';
+import { useStageStore } from '@/lib/store/stage';
+
+export function TeacherTeachMode() {
+  const router = useRouter();
+  const stage = useStageStore.use.stage();
+  const scenes = useStageStore.use.scenes();
+  const currentSceneId = useStageStore.use.currentSceneId();
+  const setCurrentSceneId = useStageStore.use.setCurrentSceneId();
+  const metadata = parseTeacherLessonMetadata(stage?.teacherLesson);
+  const navigation = useMemo(
+    () => getTeacherNavigationState(scenes, currentSceneId),
+    [currentSceneId, scenes],
+  );
+  const currentScene = scenes[navigation.index] ?? null;
+
+  const previous = useCallback(() => {
+    if (navigation.previousSceneId) setCurrentSceneId(navigation.previousSceneId);
+  }, [navigation.previousSceneId, setCurrentSceneId]);
+  const next = useCallback(() => {
+    if (navigation.nextSceneId) setCurrentSceneId(navigation.nextSceneId);
+  }, [navigation.nextSceneId, setCurrentSceneId]);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return;
+      if (
+        isEditableShortcutTarget(event.target) ||
+        isEditableShortcutTarget(document.activeElement)
+      ) {
+        return;
+      }
+      if (event.key === 'ArrowLeft' && navigation.previousSceneId) {
+        event.preventDefault();
+        previous();
+      } else if (event.key === 'ArrowRight' && navigation.nextSceneId) {
+        event.preventDefault();
+        next();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [navigation.nextSceneId, navigation.previousSceneId, next, previous]);
+
+  if (!stage || !metadata) {
+    return (
+      <main className="grid min-h-0 flex-1 place-items-center bg-slate-950 p-6 text-white">
+        <section className="max-w-lg rounded-2xl border border-white/10 bg-white/5 p-8 text-center">
+          <h1 className="text-2xl font-semibold">Teach Mode is unavailable</h1>
+          <p className="mt-3 text-slate-300">
+            This lesson does not contain valid teacher lesson metadata. You can still open it in the
+            standard OpenMAIC experience.
+          </p>
+          <button
+            type="button"
+            onClick={() => router.push(stage ? `/lessons/${stage.id}/edit` : '/')}
+            className="mt-6 min-h-12 rounded-xl bg-white px-5 font-semibold text-slate-950 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+          >
+            Return to lessons
+          </button>
+        </section>
+      </main>
+    );
+  }
+
+  if (!currentScene) {
+    return (
+      <main className="grid min-h-0 flex-1 place-items-center bg-slate-950 p-6 text-white">
+        <section className="text-center">
+          <h1 className="text-2xl font-semibold">This lesson has no teaching scenes yet</h1>
+          <button
+            type="button"
+            onClick={() => router.push(`/lessons/${stage.id}/edit`)}
+            className="mt-6 min-h-12 rounded-xl bg-white px-5 font-semibold text-slate-950"
+          >
+            Return to lesson review
+          </button>
+        </section>
+      </main>
+    );
+  }
+
+  const interactive = currentScene.type === 'interactive';
+
+  return (
+    <main
+      className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-slate-950 text-white"
+      data-testid="teacher-teach-mode"
+    >
+      <div className="relative min-h-0 flex-1 overflow-hidden p-2 sm:p-3">
+        {interactive ? (
+          <div className="relative h-full w-full overflow-hidden rounded-xl bg-white shadow-2xl">
+            <SceneProvider>
+              <SceneRenderer scene={currentScene} mode="playback" />
+            </SceneProvider>
+          </div>
+        ) : (
+          <ContainBox className="overflow-hidden rounded-xl bg-white shadow-2xl">
+            <SceneProvider>
+              <SceneRenderer scene={currentScene} mode="playback" />
+            </SceneProvider>
+          </ContainBox>
+        )}
+      </div>
+
+      <nav
+        className="flex min-h-20 shrink-0 items-center justify-between gap-3 border-t border-white/10 bg-slate-900 px-3 py-2 sm:px-5"
+        aria-label="Lesson navigation"
+      >
+        <button
+          type="button"
+          onClick={previous}
+          disabled={!navigation.previousSceneId}
+          className="flex min-h-14 min-w-14 items-center justify-center gap-2 rounded-xl bg-white/10 px-4 text-base font-semibold hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-35 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+          aria-label="Previous scene"
+        >
+          <ArrowLeft className="size-6" aria-hidden="true" />
+          <span className="hidden sm:inline">Previous</span>
+        </button>
+        <output
+          className="min-w-20 text-center text-lg font-bold tabular-nums"
+          aria-label="Lesson position"
+        >
+          {navigation.position} / {navigation.total}
+        </output>
+        <button
+          type="button"
+          onClick={next}
+          disabled={!navigation.nextSceneId}
+          className="flex min-h-14 min-w-14 items-center justify-center gap-2 rounded-xl bg-white/10 px-4 text-base font-semibold hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-35 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+          aria-label="Next scene"
+        >
+          <span className="hidden sm:inline">Next</span>
+          <ArrowRight className="size-6" aria-hidden="true" />
+        </button>
+        <button
+          type="button"
+          onClick={() => router.push(`/lessons/${stage.id}/edit`)}
+          className="flex min-h-14 items-center justify-center gap-2 rounded-xl border border-white/15 px-4 font-semibold hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+        >
+          <LogOut className="size-5" aria-hidden="true" />
+          <span className="hidden lg:inline">Exit Teaching</span>
+        </button>
+      </nav>
+      <InteractiveIframeHost />
+    </main>
+  );
+}
