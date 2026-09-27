@@ -36,3 +36,16 @@ Final Phase 1–2 command results are recorded in `docs/teacher-platform-phase-1
 - The 104 failures remain in the recorded Windows shell, PGlite/WASM, timing-sensitive, and environment-specific groups; no `tests/teacher` test failed.
 - The generation package passed 198 of 199 tests. Its sole failure is the existing Windows path-separator assertion in `test/assets.test.ts`; all legacy prompt goldens passed.
 - The storage package's failures were PGlite/WASM initialization and timeout failures consistent with the Windows baseline. The package typecheck passed.
+
+## Phase 3 coverage
+
+Phase 3 adds focused coverage in `tests/teacher/annotations.test.ts`, `tests/teacher/fullscreen.test.ts`, `tests/teacher/teach-mode.test.ts`, and `e2e/tests/teacher-teach-mode.spec.ts`. These tests cover normalized annotations, erasing and history, scene isolation, navigation boundaries, typing-safe shortcuts, fullscreen fallback, Teach Now entry, persisted route refresh, touch-sized presentation controls, teacher notes, annotation interaction handoff, and safe exit to review.
+
+Final Phase 3 results on 2026-09-27:
+
+- Focused teacher Vitest: **23 passed, 0 failed** across 6 files.
+- Teacher browser workflows: **3 passed, 0 failed** across 2 Playwright specifications.
+- Broad Vitest: **8,760 passed, 96 failed, 45 skipped**, with one worker-start timeout in `tests/workbench/composer-materials-toast.test.ts` after the run became resource constrained.
+- TypeScript, Prettier, production build, and ESLint all passed; ESLint retained the same 20 baseline warnings and had no errors.
+
+The broad result is not directly comparable by totals alone because Phase 3 added tests, the executed skip count changed, and one worker failed to start. The 96 reported failures remained in known Windows shell/path, PGlite/WASM, environment-dependent media/runtime, or timing-sensitive groups outside the Phase 3 changed area. No `tests/teacher` test failed, and the focused and browser suites passed after the final code changes. No Phase 3 regression was identified.
