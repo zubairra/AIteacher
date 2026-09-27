@@ -1,7 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useMemo } from 'react';
-import { ArrowLeft, ArrowRight, LogOut } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { ArrowLeft, ArrowRight, Eraser, LogOut, Pencil, Redo2, Trash2, Undo2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { ContainBox } from '@/components/edit/ContainBox';
 import { InteractiveIframeHost } from '@/components/scene-renderers/InteractiveIframeHost';
@@ -10,6 +10,15 @@ import { SceneProvider } from '@/lib/contexts/scene-context';
 import { parseTeacherLessonMetadata } from '@/lib/teacher/lesson-request';
 import { getTeacherNavigationState, isEditableShortcutTarget } from '@/lib/teacher/teach-mode';
 import { useStageStore } from '@/lib/store/stage';
+import { AnnotationOverlay } from '@/components/teacher/AnnotationOverlay';
+import {
+  clearSceneAnnotations,
+  createTeacherAnnotationState,
+  getSceneAnnotationHistory,
+  redoSceneAnnotations,
+  undoSceneAnnotations,
+  type AnnotationTool,
+} from '@/lib/teacher/annotations';
 
 export function TeacherTeachMode() {
   const router = useRouter();
@@ -17,12 +26,17 @@ export function TeacherTeachMode() {
   const scenes = useStageStore.use.scenes();
   const currentSceneId = useStageStore.use.currentSceneId();
   const setCurrentSceneId = useStageStore.use.setCurrentSceneId();
+  const [annotationTool, setAnnotationTool] = useState<AnnotationTool>('off');
+  const [annotations, setAnnotations] = useState(createTeacherAnnotationState);
   const metadata = parseTeacherLessonMetadata(stage?.teacherLesson);
   const navigation = useMemo(
     () => getTeacherNavigationState(scenes, currentSceneId),
     [currentSceneId, scenes],
   );
   const currentScene = scenes[navigation.index] ?? null;
+  const annotationHistory = currentScene
+    ? getSceneAnnotationHistory(annotations, currentScene.id)
+    : undefined;
 
   const previous = useCallback(() => {
     if (navigation.previousSceneId) setCurrentSceneId(navigation.previousSceneId);
@@ -91,6 +105,19 @@ export function TeacherTeachMode() {
   }
 
   const interactive = currentScene.type === 'interactive';
+  const sceneContent = (
+    <>
+      <SceneProvider>
+        <SceneRenderer scene={currentScene} mode="playback" />
+      </SceneProvider>
+      <AnnotationOverlay
+        sceneId={currentScene.id}
+        tool={annotationTool}
+        state={annotations}
+        onStateChange={setAnnotations}
+      />
+    </>
+  );
 
   return (
     <main
@@ -100,15 +127,11 @@ export function TeacherTeachMode() {
       <div className="relative min-h-0 flex-1 overflow-hidden p-2 sm:p-3">
         {interactive ? (
           <div className="relative h-full w-full overflow-hidden rounded-xl bg-white shadow-2xl">
-            <SceneProvider>
-              <SceneRenderer scene={currentScene} mode="playback" />
-            </SceneProvider>
+            {sceneContent}
           </div>
         ) : (
           <ContainBox className="overflow-hidden rounded-xl bg-white shadow-2xl">
-            <SceneProvider>
-              <SceneRenderer scene={currentScene} mode="playback" />
-            </SceneProvider>
+            {sceneContent}
           </ContainBox>
         )}
       </div>
@@ -133,6 +156,60 @@ export function TeacherTeachMode() {
         >
           {navigation.position} / {navigation.total}
         </output>
+        <div className="flex items-center gap-2" role="toolbar" aria-label="Annotation tools">
+          <button
+            type="button"
+            onClick={() => setAnnotationTool((tool) => (tool === 'pen' ? 'off' : 'pen'))}
+            aria-pressed={annotationTool === 'pen'}
+            className={toolButtonClass(annotationTool === 'pen')}
+          >
+            <Pencil className="size-5" aria-hidden="true" />
+            <span className="hidden xl:inline">Draw</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setAnnotationTool((tool) => (tool === 'eraser' ? 'off' : 'eraser'))}
+            aria-pressed={annotationTool === 'eraser'}
+            className={toolButtonClass(annotationTool === 'eraser')}
+          >
+            <Eraser className="size-5" aria-hidden="true" />
+            <span className="sr-only">Eraser</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setAnnotations(undoSceneAnnotations(annotations, currentScene.id))}
+            disabled={!annotationHistory?.past.length}
+            className={toolButtonClass(false)}
+            aria-label="Undo annotation"
+          >
+            <Undo2 className="size-5" aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            onClick={() => setAnnotations(redoSceneAnnotations(annotations, currentScene.id))}
+            disabled={!annotationHistory?.future.length}
+            className={toolButtonClass(false)}
+            aria-label="Redo annotation"
+          >
+            <Redo2 className="size-5" aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              if (
+                annotationHistory?.strokes.length &&
+                window.confirm('Clear all annotations on this lesson scene?')
+              ) {
+                setAnnotations(clearSceneAnnotations(annotations, currentScene.id));
+              }
+            }}
+            disabled={!annotationHistory?.strokes.length}
+            className={toolButtonClass(false)}
+            aria-label="Clear annotations"
+          >
+            <Trash2 className="size-5" aria-hidden="true" />
+          </button>
+        </div>
         <button
           type="button"
           onClick={next}
@@ -155,4 +232,13 @@ export function TeacherTeachMode() {
       <InteractiveIframeHost />
     </main>
   );
+}
+
+function toolButtonClass(active: boolean): string {
+  return [
+    'flex min-h-12 min-w-12 items-center justify-center gap-2 rounded-xl px-3 font-semibold',
+    'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white',
+    'disabled:cursor-not-allowed disabled:opacity-30',
+    active ? 'bg-red-500 text-white' : 'bg-white/10 text-white hover:bg-white/15',
+  ].join(' ');
 }
