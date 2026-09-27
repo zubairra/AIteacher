@@ -139,7 +139,8 @@ export function eraseAnnotationStrokes(
   point: AnnotationPoint,
   radius: number,
 ): readonly AnnotationStroke[] {
-  return strokes.filter((stroke) => !strokeTouchesPoint(stroke, point, radius));
+  const remaining = strokes.filter((stroke) => !strokeTouchesPoint(stroke, point, radius));
+  return remaining.length === strokes.length ? strokes : remaining;
 }
 
 function strokeTouchesPoint(

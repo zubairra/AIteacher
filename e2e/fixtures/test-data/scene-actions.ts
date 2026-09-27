@@ -1,27 +1,31 @@
 import { defaultTheme } from './scene-content';
+import type { SceneOutline } from '../../../lib/types/generation';
 
 /** Mock response for POST /api/generate/scene-actions */
-export function createMockSceneActionsResponse(stageId: string) {
+export function createMockSceneActionsResponse(stageId: string, outline?: SceneOutline) {
+  const order = outline?.order ?? 0;
+  const title = outline?.title ?? '光合作用的基本概念';
   return {
     success: true,
     scene: {
-      id: 'scene-0',
+      id: `scene-${order}`,
       stageId,
       type: 'slide',
-      title: '光合作用的基本概念',
-      order: 0,
+      title,
+      order,
+      ...(outline?.teacherNotes ? { teacherNotes: outline.teacherNotes } : {}),
       content: {
         type: 'slide',
         canvas: {
-          id: 'slide-0',
+          id: `slide-${order}`,
           viewportSize: 1000,
           viewportRatio: 0.5625,
           theme: defaultTheme,
           elements: [
             {
               type: 'text',
-              id: 'title-el',
-              content: '光合作用的基本概念',
+              id: `title-el-${order}`,
+              content: title,
               left: 50,
               top: 50,
               width: 900,
@@ -32,10 +36,10 @@ export function createMockSceneActionsResponse(stageId: string) {
       },
       actions: [
         {
-          id: 'action-0',
+          id: `action-${order}`,
           type: 'speech',
           agent: 'teacher',
-          text: '今天我们来学习光合作用的基本概念。',
+          text: `Introduce ${title}.`,
         },
       ],
     },

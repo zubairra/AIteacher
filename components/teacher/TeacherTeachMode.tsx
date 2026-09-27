@@ -201,6 +201,7 @@ export function TeacherTeachMode() {
       </div>
 
       <nav
+        data-testid="teacher-teach-toolbar"
         className="flex min-h-20 shrink-0 items-center justify-between gap-3 border-t border-white/10 bg-slate-900 px-3 py-2 sm:px-5"
         aria-label="Lesson navigation"
       >

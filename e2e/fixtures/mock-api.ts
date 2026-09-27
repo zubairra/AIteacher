@@ -36,10 +36,16 @@ export class MockApi {
   /** Mock the scene content generation endpoint */
   async mockSceneContent(response = mockSceneContentResponse) {
     await this.page.route('**/api/generate/scene-content', (route) => {
+      let effectiveOutline = response.effectiveOutline;
+      try {
+        effectiveOutline = route.request().postDataJSON()?.outline ?? effectiveOutline;
+      } catch {
+        // Keep the deterministic fixture fallback for malformed requests.
+      }
       route.fulfill({
         status: 200,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(response),
+        body: JSON.stringify({ ...response, effectiveOutline }),
       });
     });
   }
@@ -50,10 +56,12 @@ export class MockApi {
   async mockSceneActions(stageId?: string) {
     await this.page.route('**/api/generate/scene-actions', async (route) => {
       let id = stageId ?? 'test-stage';
+      let outline: (typeof mockOutlines)[number] | undefined;
       if (!stageId) {
         try {
           const body = route.request().postDataJSON();
           if (body?.stageId) id = body.stageId;
+          outline = body?.outline;
         } catch {
           // fallback to default
         }
@@ -61,7 +69,7 @@ export class MockApi {
       await route.fulfill({
         status: 200,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(createMockSceneActionsResponse(id)),
+        body: JSON.stringify(createMockSceneActionsResponse(id, outline)),
       });
     });
   }
@@ -87,8 +95,8 @@ export class MockApi {
   }
 
   /** Set up API mocks for the generation flow. Note: server-providers is already mocked by the base fixture. */
-  async setupGenerationMocks(stageId?: string) {
-    await this.mockSceneOutlinesStream();
+  async setupGenerationMocks(stageId?: string, outlines = mockOutlines) {
+    await this.mockSceneOutlinesStream(outlines);
     await this.mockSceneContent();
     await this.mockSceneActions(stageId);
   }

@@ -82,7 +82,8 @@ export function AnnotationOverlay({ sceneId, tool, state, onStateChange }: Annot
 
   const pointsForEvent = (event: React.PointerEvent<HTMLCanvasElement>) => {
     const rect = event.currentTarget.getBoundingClientRect();
-    const source = event.nativeEvent.getCoalescedEvents?.() ?? [event.nativeEvent];
+    const coalesced = event.nativeEvent.getCoalescedEvents?.() ?? [];
+    const source = coalesced.length > 0 ? coalesced : [event.nativeEvent];
     return source.map((sample) =>
       normalizedPointFromClient(sample.clientX, sample.clientY, rect, sample.pressure),
     );
