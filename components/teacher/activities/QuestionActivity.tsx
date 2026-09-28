@@ -151,8 +151,7 @@ function QuestionActivityBody({
     setActive((x) => [...x, p]);
     setPerformance((current) => consumePowerUp(current, p));
   };
-  if (completed)
-    return <Summary performance={performance} total={questions.length} />;
+  if (completed) return <Summary performance={performance} total={questions.length} />;
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-5">
       <div className="flex justify-between text-lg font-bold">
@@ -259,8 +258,8 @@ function QuestionActivityBody({
       ) : null}
       <div className="flex justify-center">
         {checked ? (
-            <button className={button} onClick={next}>
-              {index === questions.length - 1 ? 'Finish Quiz' : 'Next Question'}
+          <button className={button} onClick={next}>
+            {index === questions.length - 1 ? 'Finish Quiz' : 'Next Question'}
           </button>
         ) : (
           <button className={button} onClick={check} disabled={!selected.length}>
