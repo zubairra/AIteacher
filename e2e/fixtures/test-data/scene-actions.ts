@@ -14,6 +14,7 @@ export function createMockSceneActionsResponse(stageId: string, outline?: SceneO
       title,
       order,
       ...(outline?.teacherNotes ? { teacherNotes: outline.teacherNotes } : {}),
+      ...(outline?.nativeActivity ? { nativeActivity: outline.nativeActivity } : {}),
       content: {
         type: 'slide',
         canvas: {

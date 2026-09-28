@@ -32,7 +32,11 @@ function QuestionActivityBody({
     [hidden, setHidden] = useState<string[]>([]),
     [hint, setHint] = useState(false),
     [active, setActive] = useState<PowerUpType[]>([]),
-    [performance, setPerformance] = useState(emptyPerformance);
+    [performances, setPerformances] = useState<
+      [ReturnType<typeof emptyPerformance>, ReturnType<typeof emptyPerformance>]
+    >([emptyPerformance(), emptyPerformance()]),
+    [activeTeam, setActiveTeam] = useState<0 | 1>(0);
+  const [completed, setCompleted] = useState(false);
   const [reward, setReward] = useState<ReturnType<typeof evaluateRewardRules>[number]>();
   const [awardCounts, setAwardCounts] = useState<Record<string, number>>({});
   const [secondsLeft, setSecondsLeft] = useState(
@@ -41,6 +45,16 @@ function QuestionActivityBody({
   const questions = definition.questions;
   const question = questions[index]!;
   const config = definition.gamification;
+  const performance = performances[config?.mode === 'teams' ? activeTeam : 0];
+  const setPerformance = (
+    update: (current: ReturnType<typeof emptyPerformance>) => ReturnType<typeof emptyPerformance>,
+  ) =>
+    setPerformances((current) => {
+      const next: typeof current = [...current];
+      const player = config?.mode === 'teams' ? activeTeam : 0;
+      next[player] = update(current[player]);
+      return next;
+    });
   const options = useMemo(
     () =>
       definition.type === 'true-false'
@@ -110,6 +124,10 @@ function QuestionActivityBody({
     setChecked(true);
   };
   const next = () => {
+    if (index === questions.length - 1) {
+      setCompleted(true);
+      return;
+    }
     setIndex((x) => Math.min(x + 1, questions.length - 1));
     setSelected([]);
     setChecked(false);
@@ -133,7 +151,7 @@ function QuestionActivityBody({
     setActive((x) => [...x, p]);
     setPerformance((current) => consumePowerUp(current, p));
   };
-  if (checked && index === questions.length - 1)
+  if (completed)
     return <Summary performance={performance} total={questions.length} />;
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-5">
@@ -148,6 +166,24 @@ function QuestionActivityBody({
         ) : null}
         {secondsLeft !== undefined ? <span>⏱ {secondsLeft}s</span> : null}
       </div>
+      {config?.enabled && config.mode === 'teams' ? (
+        <div className="flex justify-center gap-3">
+          <button
+            className={button}
+            aria-pressed={activeTeam === 0}
+            onClick={() => setActiveTeam(0)}
+          >
+            Team A · {performances[0].score}
+          </button>
+          <button
+            className={button}
+            aria-pressed={activeTeam === 1}
+            onClick={() => setActiveTeam(1)}
+          >
+            Team B · {performances[1].score}
+          </button>
+        </div>
+      ) : null}
       <h2 className="text-center text-3xl font-bold sm:text-5xl">{question.prompt}</h2>
       {config?.enabled && config.lifelines ? (
         <div className="flex flex-wrap justify-center gap-2">
@@ -223,8 +259,8 @@ function QuestionActivityBody({
       ) : null}
       <div className="flex justify-center">
         {checked ? (
-          <button className={button} onClick={next}>
-            Next Question
+            <button className={button} onClick={next}>
+              {index === questions.length - 1 ? 'Finish Quiz' : 'Next Question'}
           </button>
         ) : (
           <button className={button} onClick={check} disabled={!selected.length}>

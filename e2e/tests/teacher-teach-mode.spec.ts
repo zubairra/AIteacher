@@ -35,6 +35,80 @@ const teachOutlines: SceneOutline[] = [
     },
   },
   {
+    id: 'teach-outline-4',
+    type: 'slide',
+    title: 'True or false',
+    description: 'Misconception check',
+    keyPoints: ['Check'],
+    order: 4,
+    nativeActivity: {
+      version: 1,
+      id: 'tf',
+      type: 'true-false',
+      title: 'True or False',
+      questions: [{ id: 't1', prompt: 'Electrons have a negative charge.', answer: true }],
+    },
+  },
+  {
+    id: 'teach-outline-5',
+    type: 'slide',
+    title: 'Sort',
+    description: 'Classification',
+    keyPoints: ['Sort'],
+    order: 5,
+    nativeActivity: {
+      version: 1,
+      id: 'sort',
+      type: 'sort',
+      title: 'Sort Particles',
+      categories: [
+        { id: 'charged', label: 'Charged' },
+        { id: 'neutral', label: 'Neutral' },
+      ],
+      items: [
+        { id: 'electron-item', label: 'Electron item', categoryId: 'charged' },
+        { id: 'neutron-item', label: 'Neutron item', categoryId: 'neutral' },
+      ],
+    },
+  },
+  {
+    id: 'teach-outline-6',
+    type: 'slide',
+    title: 'Order',
+    description: 'Sequence',
+    keyPoints: ['Order'],
+    order: 6,
+    nativeActivity: {
+      version: 1,
+      id: 'order',
+      type: 'ordering',
+      title: 'Put in Order',
+      items: [
+        { id: 'first', label: 'First step' },
+        { id: 'second', label: 'Second step' },
+      ],
+      correctOrder: ['first', 'second'],
+    },
+  },
+  {
+    id: 'teach-outline-7',
+    type: 'slide',
+    title: 'Wheel',
+    description: 'Oral revision',
+    keyPoints: ['Spin'],
+    order: 7,
+    nativeActivity: {
+      version: 1,
+      id: 'wheel',
+      type: 'spin-wheel',
+      title: 'Revision Wheel',
+      entries: [
+        { id: 'w1', label: 'Explain one idea' },
+        { id: 'w2', label: 'Give one example' },
+      ],
+    },
+  },
+  {
     id: 'teach-outline-2',
     type: 'slide',
     title: 'Particle charges',
@@ -74,7 +148,7 @@ const teachOutlines: SceneOutline[] = [
 ];
 
 test.describe('Smart-board Teach Mode', () => {
-  test.setTimeout(120_000);
+  test.setTimeout(180_000);
 
   test.beforeEach(async ({ page, mockApi }) => {
     await page.addInitScript((settings) => {
@@ -89,7 +163,9 @@ test.describe('Smart-board Teach Mode', () => {
     page,
   }) => {
     await page.goto('/lessons/new');
+    await page.waitForLoadState('networkidle');
     await page.getByLabel('Subject').selectOption('Chemistry');
+    await expect(page.getByLabel('Subject')).toHaveValue('Chemistry');
     await page.getByLabel('Grade').selectOption('Grade 8');
     await page.getByLabel('Topic').fill('Structure of the Atom');
     await page.getByLabel('Duration').selectOption('40');
@@ -100,7 +176,7 @@ test.describe('Smart-board Teach Mode', () => {
     await page.waitForURL(/\/lessons\/[^/]+\/edit$/, { timeout: 90_000 });
     await expect(page.getByRole('link', { name: 'Teach Now' })).toBeVisible();
     await Promise.all([
-      page.waitForURL(/\/lessons\/[^/]+\/teach$/, { timeout: 15_000 }),
+      page.waitForURL(/\/lessons\/[^/]+\/teach$/, { timeout: 45_000 }),
       page.getByRole('link', { name: 'Teach Now' }).click(),
     ]);
     await expect(page.getByTestId('teacher-teach-mode')).toBeVisible();
@@ -123,11 +199,11 @@ test.describe('Smart-board Teach Mode', () => {
     const next = page.getByRole('button', { name: 'Next scene' });
     await expect(previous).toBeDisabled();
     await expect(next).toBeEnabled();
-    await expect(page.getByLabel('Lesson position')).toHaveText('1 / 3');
+    await expect(page.getByLabel('Lesson position')).toHaveText('1 / 7');
     await next.click();
-    await expect(page.getByLabel('Lesson position')).toHaveText('2 / 3');
+    await expect(page.getByLabel('Lesson position')).toHaveText('2 / 7');
     await previous.click();
-    await expect(page.getByLabel('Lesson position')).toHaveText('1 / 3');
+    await expect(page.getByLabel('Lesson position')).toHaveText('1 / 7');
 
     const draw = page.getByRole('button', { name: 'Draw' });
     const overlay = page.getByTestId('teacher-annotation-overlay');
@@ -151,7 +227,7 @@ test.describe('Smart-board Teach Mode', () => {
     await page.getByRole('button', { name: 'Check Answer' }).click();
     await expect(page.getByText('✓ Correct')).toBeVisible();
     await page.getByRole('button', { name: 'Return to Lesson' }).click();
-    await expect(page.getByLabel('Lesson position')).toHaveText('1 / 3');
+    await expect(page.getByLabel('Lesson position')).toHaveText('1 / 7');
     await expect(page.getByRole('button', { name: 'Undo annotation' })).toBeEnabled();
 
     await next.click();
@@ -166,8 +242,26 @@ test.describe('Smart-board Teach Mode', () => {
     await expect(page.getByText('In the nucleus')).toBeVisible();
     await page.getByRole('button', { name: '+ Award' }).first().click();
     await page.getByRole('button', { name: 'Return to Lesson' }).click();
-    await previous.click();
-    await previous.click();
+    await next.click();
+    await page.getByRole('button', { name: 'Activity' }).click();
+    await page.getByRole('button', { name: 'TRUE' }).click();
+    await page.getByRole('button', { name: 'Check Answer' }).click();
+    await expect(page.getByText('✓ Correct')).toBeVisible();
+    await page.getByRole('button', { name: 'Return to Lesson' }).click();
+    await next.click();
+    await page.getByRole('button', { name: 'Activity' }).click();
+    await page.getByRole('button', { name: 'Electron item' }).click();
+    await page.getByRole('button', { name: /Charged/ }).click();
+    await page.getByRole('button', { name: 'Return to Lesson' }).click();
+    await next.click();
+    await page.getByRole('button', { name: 'Activity' }).click();
+    await page.getByRole('button', { name: 'Check Order' }).click();
+    await page.getByRole('button', { name: 'Return to Lesson' }).click();
+    await next.click();
+    await page.getByRole('button', { name: 'Activity' }).click();
+    await page.getByRole('button', { name: 'SPIN' }).click();
+    await page.getByRole('button', { name: 'Return to Lesson' }).click();
+    for (let index = 0; index < 6; index += 1) await previous.click();
 
     await page.getByRole('button', { name: 'Notes' }).click();
     await expect(page.getByRole('complementary', { name: 'Teacher notes' })).toContainText(
