@@ -4,6 +4,7 @@ import {
   isTeacherLedRequirements,
   normalizeTeacherNotes,
   teacherDurationGuidance,
+  teacherActivityGuidance,
 } from '../../packages/@openmaic/generation/src/teacher-mode';
 import { buildOutlinePrompt } from '../../packages/@openmaic/generation/src/outline-generator';
 import { buildCompleteScene } from '../../packages/@openmaic/generation/src/scene-builder';
@@ -60,6 +61,37 @@ describe('teacher-led generation mode', () => {
     expect(activity).toContain('class discussion');
     expect(visual).not.toEqual(activity);
     expect(teacherDurationGuidance(20)).not.toEqual(teacherDurationGuidance(60));
+    expect(teacherActivityGuidance('activity-heavy', 60)).not.toEqual(
+      teacherActivityGuidance('explanation-focused', 20),
+    );
+  });
+
+  it('adds data-only native activity guidance and persists definitions on scenes', () => {
+    const context = buildTeacherLedPromptContext(requirements('activity-heavy'));
+    expect(context).toContain('nativeActivity');
+    expect(context).toContain('Never emit JavaScript');
+    const nativeActivity = {
+      version: 1,
+      id: 'review',
+      type: 'true-false',
+      title: 'Review',
+      questions: [{ id: 'q', prompt: 'A statement', answer: true }],
+    };
+    const scene = buildCompleteScene(
+      {
+        id: 'outline-activity',
+        type: 'slide',
+        title: 'Review',
+        description: 'Review',
+        keyPoints: [],
+        order: 1,
+        nativeActivity,
+      },
+      { elements: [] },
+      [],
+      'stage-1',
+    );
+    expect(scene?.nativeActivity).toEqual(nativeActivity);
   });
 
   it('normalizes model-authored teacher notes as bounded data', () => {

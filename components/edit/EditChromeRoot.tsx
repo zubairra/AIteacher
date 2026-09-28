@@ -14,6 +14,7 @@ import { useInWorkbenchPanel } from '@/lib/workbench/panel-context';
 import { supportsNarrationTimeline } from './scene-timeline';
 import type { Scene } from '@/lib/types/stage';
 import { TeacherNotesPanel } from '@/components/teacher/TeacherNotesPanel';
+import { NativeActivityPreview } from '@/components/teacher/NativeActivityPreview';
 
 interface EditChromeRootProps {
   readonly scene: Scene;
@@ -126,6 +127,7 @@ export function EditChromeRoot({ scene, isEditable, onToggleEditMode }: EditChro
         hideCommandBar={inWorkbenchPanel}
       />
       <TeacherNotesPanel notes={scene.teacherNotes} />
+      <NativeActivityPreview sceneId={scene.id} definition={scene.nativeActivity} />
     </div>
   );
 }

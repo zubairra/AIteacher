@@ -16,6 +16,24 @@ const STYLE_GUIDANCE: Record<TeachingStyle, string> = {
     'Prefer class discussion, oral questions, quick challenges, guided practice, and revision. Do not turn every scene into a quiz.',
 };
 
+export function teacherActivityGuidance(style: TeachingStyle, minutes: number): string {
+  const cadence =
+    minutes <= 20
+      ? 'Use at most one brief activity only when it materially helps.'
+      : minutes <= 50
+        ? 'Use a moderate number of purposeful checks or one revision activity.'
+        : 'Longer lessons may include spaced checks and a concluding revision activity.';
+  const styleRule =
+    style === 'activity-heavy'
+      ? 'Prefer useful whole-class interaction and revision.'
+      : style === 'explanation-focused'
+        ? 'Use fewer interruptions; add an activity only for a meaningful check.'
+        : style === 'visual'
+          ? 'Prefer visually useful matching, sorting, ordering, or concise question activities.'
+          : 'Balance activity with explanation, examples, and discussion.';
+  return `${styleRule} ${cadence}`;
+}
+
 export function isTeacherLedRequirements(
   requirements: Pick<UserRequirements, 'generationMode' | 'teacherLesson'> | undefined,
 ): requirements is Pick<UserRequirements, 'generationMode'> & {
@@ -88,10 +106,13 @@ export function buildTeacherLedPromptContext(requirements: UserRequirements | un
     '',
     `Style behavior: ${STYLE_GUIDANCE[lesson.teachingStyle]}`,
     `Pacing behavior: ${teacherDurationGuidance(lesson.durationMinutes)}`,
+    `Native activity behavior: ${teacherActivityGuidance(lesson.teachingStyle, lesson.durationMinutes)}`,
     '',
     'Select a pedagogically sensible subset of hook, objectives, explanation, visual explanation, examples, discussion, oral questions, checks, revision, quiz, summary, and exit question. Do not force every category into the lesson.',
     'Slides must be concise and readable when projected. Put presenter guidance in teacherNotes, not on the projected slide.',
     'For each outline, optionally include teacherNotes with version 1 and only useful fields: teacherTip, commonMisconception, discussionPrompt, explanationNote. Keep each note concise and teacher-facing.',
+    'When useful, optionally add a data-only nativeActivity to an outline: {version:1,id,type,title,instructions?,...}. Allowed types: multiple-choice, true-false, match-pairs, sort, ordering, spin-wheel, team-battle. Use stable unique IDs and valid references. Question fields may include explanation, safe hint, basePoints, and difficulty. Never emit JavaScript, HTML, event handlers, or executable expressions in nativeActivity.',
+    'Do not force activities. Multiple choice suits quick checks; true/false misconceptions; matching relationships; sort classification; ordering sequences; wheel and team battle oral whole-class revision.',
     'Avoid PBL unless the validated lesson brief clearly calls for substantial project work; ordinary teacher-led lessons should use slides, quizzes, and at most a small number of useful interactives.',
     'The sum of estimatedDuration values should be reasonably close to the requested class duration.',
     'Do not generate continuous AI speech or AI-teacher narration.',

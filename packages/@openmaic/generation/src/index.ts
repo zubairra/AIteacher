@@ -91,6 +91,7 @@ export {
   isTeacherLedRequirements,
   normalizeTeacherNotes,
   teacherDurationGuidance,
+  teacherActivityGuidance,
 } from './teacher-mode.js';
 export { partitionImagesForVision } from './outline-formatters.js';
 export type { VisionImagePartition } from './outline-formatters.js';

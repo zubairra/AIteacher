@@ -102,6 +102,8 @@ export interface SceneOutline {
   order: number;
   languageNote?: string;
   teacherNotes?: TeacherNotes;
+  /** Optional data-only classroom activity. The host application validates it before persistence. */
+  nativeActivity?: unknown;
   suggestedImageIds?: string[];
   mediaGenerations?: MediaGenerationRequest[];
   quizConfig?: {

@@ -15,6 +15,24 @@ const teachOutlines: SceneOutline[] = [
       teacherTip: 'Ask students what they think is inside an atom.',
       commonMisconception: 'Electrons are not inside the nucleus.',
     },
+    nativeActivity: {
+      version: 1,
+      id: 'quick-check',
+      type: 'multiple-choice',
+      title: 'Quick Check',
+      questions: [
+        {
+          id: 'q1',
+          prompt: 'Which particle has a negative charge?',
+          options: [
+            { id: 'proton', label: 'Proton' },
+            { id: 'electron', label: 'Electron' },
+            { id: 'neutron', label: 'Neutron' },
+          ],
+          correctOptionIds: ['electron'],
+        },
+      ],
+    },
   },
   {
     id: 'teach-outline-2',
@@ -23,6 +41,35 @@ const teachOutlines: SceneOutline[] = [
     description: 'Compare the charges of subatomic particles.',
     keyPoints: ['Positive proton', 'Neutral neutron', 'Negative electron'],
     order: 2,
+    nativeActivity: {
+      version: 1,
+      id: 'match',
+      type: 'match-pairs',
+      title: 'Match the Pairs',
+      randomize: false,
+      pairs: [
+        { id: 'p1', left: 'Proton', right: 'Positive' },
+        { id: 'p2', left: 'Electron', right: 'Negative' },
+      ],
+    },
+  },
+  {
+    id: 'teach-outline-3',
+    type: 'slide',
+    title: 'Team revision',
+    description: 'Oral revision',
+    keyPoints: ['Review'],
+    order: 3,
+    nativeActivity: {
+      version: 1,
+      id: 'battle',
+      type: 'team-battle',
+      title: 'Team Battle',
+      teamNames: ['Team A', 'Team B'],
+      questions: [
+        { id: 'b1', prompt: 'Where are protons found?', answer: 'In the nucleus', basePoints: 100 },
+      ],
+    },
   },
 ];
 
@@ -76,12 +123,11 @@ test.describe('Smart-board Teach Mode', () => {
     const next = page.getByRole('button', { name: 'Next scene' });
     await expect(previous).toBeDisabled();
     await expect(next).toBeEnabled();
-    await expect(page.getByLabel('Lesson position')).toHaveText('1 / 2');
+    await expect(page.getByLabel('Lesson position')).toHaveText('1 / 3');
     await next.click();
-    await expect(page.getByLabel('Lesson position')).toHaveText('2 / 2');
-    await expect(next).toBeDisabled();
+    await expect(page.getByLabel('Lesson position')).toHaveText('2 / 3');
     await previous.click();
-    await expect(page.getByLabel('Lesson position')).toHaveText('1 / 2');
+    await expect(page.getByLabel('Lesson position')).toHaveText('1 / 3');
 
     const draw = page.getByRole('button', { name: 'Draw' });
     const overlay = page.getByTestId('teacher-annotation-overlay');
@@ -98,6 +144,30 @@ test.describe('Smart-board Teach Mode', () => {
     await expect(page.getByRole('button', { name: 'Undo annotation' })).toBeEnabled();
     await draw.click();
     await expect(overlay).toHaveClass(/pointer-events-none/);
+
+    await page.getByRole('button', { name: 'Activity' }).click();
+    await expect(page.getByTestId('activity-host')).toBeVisible();
+    await page.getByRole('button', { name: 'Electron' }).click();
+    await page.getByRole('button', { name: 'Check Answer' }).click();
+    await expect(page.getByText('✓ Correct')).toBeVisible();
+    await page.getByRole('button', { name: 'Return to Lesson' }).click();
+    await expect(page.getByLabel('Lesson position')).toHaveText('1 / 3');
+    await expect(page.getByRole('button', { name: 'Undo annotation' })).toBeEnabled();
+
+    await next.click();
+    await page.getByRole('button', { name: 'Activity' }).click();
+    await page.getByRole('button', { name: 'Proton' }).click();
+    await page.getByRole('button', { name: 'Positive' }).click();
+    await expect(page.getByText('✓ Matched')).toBeVisible();
+    await page.getByRole('button', { name: 'Return to Lesson' }).click();
+    await next.click();
+    await page.getByRole('button', { name: 'Activity' }).click();
+    await page.getByRole('button', { name: 'Reveal Answer' }).click();
+    await expect(page.getByText('In the nucleus')).toBeVisible();
+    await page.getByRole('button', { name: '+ Award' }).first().click();
+    await page.getByRole('button', { name: 'Return to Lesson' }).click();
+    await previous.click();
+    await previous.click();
 
     await page.getByRole('button', { name: 'Notes' }).click();
     await expect(page.getByRole('complementary', { name: 'Teacher notes' })).toContainText(

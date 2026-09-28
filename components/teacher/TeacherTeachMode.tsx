@@ -5,6 +5,7 @@ import {
   ArrowLeft,
   ArrowRight,
   Eraser,
+  Gamepad2,
   LogOut,
   Maximize2,
   Minimize2,
@@ -33,6 +34,8 @@ import {
 } from '@/lib/teacher/annotations';
 import { TeacherNotesContent } from '@/components/teacher/TeacherNotesPanel';
 import { toggleTeacherFullscreen } from '@/lib/teacher/fullscreen';
+import { parseNativeActivity } from '@/lib/teacher/native-activities';
+import { NativeActivitySurface } from '@/components/teacher/activities/NativeActivitySurface';
 
 export function TeacherTeachMode() {
   const router = useRouter();
@@ -46,6 +49,7 @@ export function TeacherTeachMode() {
   const [notesOpen, setNotesOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [fullscreenNotice, setFullscreenNotice] = useState<string | null>(null);
+  const [activityOpen, setActivityOpen] = useState(false);
   const metadata = parseTeacherLessonMetadata(stage?.teacherLesson);
   const navigation = useMemo(
     () => getTeacherNavigationState(scenes, currentSceneId),
@@ -56,11 +60,13 @@ export function TeacherTeachMode() {
     ? getSceneAnnotationHistory(annotations, currentScene.id)
     : undefined;
   const teacherNotes = parseTeacherNotes(currentScene?.teacherNotes);
+  const nativeActivity = parseNativeActivity(currentScene?.nativeActivity);
 
   const prepareSceneChange = useCallback(() => {
     setAnnotationTool('off');
     setNotesOpen(false);
-  }, [setAnnotationTool, setNotesOpen]);
+    setActivityOpen(false);
+  }, [setActivityOpen, setAnnotationTool, setNotesOpen]);
 
   const previous = useCallback(() => {
     if (navigation.previousSceneId) {
@@ -208,6 +214,15 @@ export function TeacherTeachMode() {
       >
         <button
           type="button"
+          onClick={() => setActivityOpen(true)}
+          className={toolButtonClass(activityOpen)}
+          hidden={!nativeActivity}
+        >
+          <Gamepad2 className="size-5" aria-hidden="true" />
+          <span className="hidden lg:inline">Activity</span>
+        </button>
+        <button
+          type="button"
           onClick={previous}
           disabled={!navigation.previousSceneId}
           className="flex min-h-14 min-w-14 items-center justify-center gap-2 rounded-xl bg-white/10 px-4 text-base font-semibold hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-35 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
@@ -324,6 +339,9 @@ export function TeacherTeachMode() {
           heading="Teacher Notes — quick peek"
           className="absolute bottom-24 right-4 z-50 max-h-[calc(100%-7rem)] w-[min(24rem,calc(100%-2rem))]"
         />
+      ) : null}
+      {activityOpen && nativeActivity ? (
+        <NativeActivitySurface definition={nativeActivity} onClose={() => setActivityOpen(false)} />
       ) : null}
       <InteractiveIframeHost />
     </main>

@@ -58,6 +58,7 @@ export type CompleteSceneContent = SlideContent | QuizContent | InteractiveConte
 export type CompleteScene = Scene<Action, CompleteSceneContent> & {
   outlineId: string;
   teacherNotes?: TeacherNotes;
+  nativeActivity?: unknown;
 };
 
 /** Widget configuration emitted by the model and normalized by the scene layer. */
