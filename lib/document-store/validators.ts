@@ -8,6 +8,7 @@ import {
 import type { SceneValidator, StageValidator } from '@openmaic/storage';
 import { hasPBLProjectV2Containers } from '@/lib/pbl/v2/types';
 import { isEmptyLegacyPBLConfig, type PBLProjectConfig } from '@/lib/pbl/legacy/read';
+import { parseNativeActivity } from '@/lib/teacher/native-activities';
 
 function objectValue(value: unknown): Record<string, unknown> | null {
   return typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : null;
@@ -29,12 +30,26 @@ export const validateAppScene: SceneValidator = (scene) => {
   if (!value) {
     return { valid: false, errors: [{ path: '/', message: 'scene must be an object' }] };
   }
-  if (value.type === 'slide' || value.type === 'quiz') return validateScene(scene);
+  if (value.type === 'slide' || value.type === 'quiz') {
+    const base = validateScene(scene);
+    if (value.nativeActivity === undefined || parseNativeActivity(value.nativeActivity))
+      return base;
+    const activityIssue = {
+      path: '/nativeActivity',
+      message: 'invalid native activity definition',
+    };
+    return base.valid
+      ? { valid: false, errors: [activityIssue] }
+      : { valid: false, errors: [...base.errors, activityIssue] };
+  }
 
   const errors: ValidationIssue[] = [];
   requiredString(value, 'id', errors);
   requiredString(value, 'stageId', errors);
   requiredString(value, 'title', errors);
+  if (value.nativeActivity !== undefined && !parseNativeActivity(value.nativeActivity)) {
+    errors.push({ path: '/nativeActivity', message: 'invalid native activity definition' });
+  }
   if (typeof value.order !== 'number' || !Number.isFinite(value.order)) {
     errors.push({ path: '/order', message: 'expected finite number `order`' });
   }

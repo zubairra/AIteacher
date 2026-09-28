@@ -21,6 +21,7 @@ import type { WidgetConfig } from '@/lib/types/widgets';
 import type { PBLProjectConfig } from '@/lib/pbl/legacy/read';
 import type { PBLProjectV2 } from '@/lib/pbl/v2/types';
 import type { TeacherLessonMetadata, TeacherNotes } from '@/lib/teacher/lesson-request';
+import type { NativeActivityDefinition } from '@/lib/teacher/native-activities';
 
 export type {
   SceneType,
@@ -118,6 +119,8 @@ export type AppScene = DslScene<Action, SceneContent> & {
   outlineId?: string;
   /** Private support for the human teacher; never intended as projected content. */
   teacherNotes?: TeacherNotes;
+  /** Validated, data-only classroom activity rendered by trusted application code. */
+  nativeActivity?: NativeActivityDefinition;
 };
 export type Scene = AppScene;
 
