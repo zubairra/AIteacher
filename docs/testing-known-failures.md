@@ -49,3 +49,7 @@ Final Phase 3 results on 2026-09-27:
 - TypeScript, Prettier, production build, and ESLint all passed; ESLint retained the same 20 baseline warnings and had no errors.
 
 The broad result is not directly comparable by totals alone because Phase 3 added tests, the executed skip count changed, and one worker failed to start. The 96 reported failures remained in known Windows shell/path, PGlite/WASM, environment-dependent media/runtime, or timing-sensitive groups outside the Phase 3 changed area. No `tests/teacher` test failed, and the focused and browser suites passed after the final code changes. No Phase 3 regression was identified.
+
+## Phase 4 coverage
+
+Phase 4 adds activity and gamification coverage under `tests/teacher/` and deterministic browser coverage in `e2e/tests/teacher-teach-mode.spec.ts`. A parallel focused run reproduced the known worker-start timeout while every started test passed; the serialized rerun completed with **46 passed, 0 failed** across 8 files. Final build and broad results are recorded in the Phase 4 completion report.

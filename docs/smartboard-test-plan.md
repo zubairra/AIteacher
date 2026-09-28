@@ -90,3 +90,17 @@ At every resolution verify that lesson content remains centered and uncropped, t
 ## Hardware verification status
 
 Automated Chromium coverage validates mouse/pointer behavior, four viewport sizes, fullscreen controls, navigation, notes, refresh, and exit. Physical finger input, active stylus pressure, device-specific eraser buttons, palm rejection, projector readability, and vendor browser fullscreen policies remain **unverified until this plan is run on actual classroom hardware**.
+
+## Phase 4 activity matrix
+
+At every target resolution, launch each native activity and return to the same scene:
+
+- Multiple Choice: select/check, explanation, next/reset, every applicable power-up, reward card, and summary.
+- True / False: both choices, reveal, Class Mode, and Team Mode isolation.
+- Match Pairs: correct/incorrect taps, locked pairs, randomization, reset.
+- Sort: pointer gesture and tap/category alternative.
+- Ordering: move first/middle/last, check, reset, keyboard focus.
+- Spin Wheel: spin, keep/remove, spin again, reset, reduced motion.
+- Team Battle: reveal, award/correct score, streak, add/remove power-up, skip/next, results/restart.
+
+Draw before launching and verify scene position, annotation, fullscreen, navigation, and notes remain after return. Confirm malformed activity data shows the safe fallback. Physical drag reliability and back-of-class reward readability remain hardware checks.
