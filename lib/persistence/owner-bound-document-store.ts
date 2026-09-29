@@ -252,7 +252,7 @@ export function createOwnerBoundDocumentStore<
           );
           const row = result.rows[0];
           if (row) {
-            if (operation.mode !== 'read' && row.owner_id !== options.ownerId) {
+            if (row.owner_id !== options.ownerId) {
               throw new StageAccessError(operation.stageId, options.ownerId, 'foreign');
             }
             if (row.deleted_at !== null && operation.mode !== 'delete') {

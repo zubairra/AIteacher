@@ -2,16 +2,28 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { BookOpen, LayoutDashboard, Library, Plus, Settings2 } from 'lucide-react';
+import { BookOpen, LayoutDashboard, Library, Plus, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { SignOutButton } from './SignOutButton';
 
 const navItems = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/lessons/new', label: 'Create Lesson', icon: Plus },
   { href: '/lessons', label: 'Saved Lessons', icon: Library },
+  { href: '/settings', label: 'Settings', icon: Settings },
 ] as const;
 
-export function TeacherShell({ children }: { children: React.ReactNode }) {
+export function TeacherShell({
+  children,
+  teacherName,
+  teacherEmail,
+  photoURL,
+}: {
+  children: React.ReactNode;
+  teacherName: string;
+  teacherEmail: string;
+  photoURL?: string;
+}) {
   const pathname = usePathname();
 
   return (
@@ -55,13 +67,29 @@ export function TeacherShell({ children }: { children: React.ReactNode }) {
             })}
           </nav>
 
-          <Link
-            href="/advanced"
-            className="flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-600 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-white"
-          >
-            <Settings2 className="size-4" aria-hidden="true" />
-            <span className="hidden sm:inline">Advanced</span>
-          </Link>
+          <div className="flex items-center gap-1">
+            {photoURL ? (
+              <img
+                src={photoURL}
+                alt=""
+                referrerPolicy="no-referrer"
+                className="size-9 rounded-full border border-slate-200"
+              />
+            ) : null}
+            <span className="hidden max-w-44 xl:block">
+              <span className="block truncate text-sm font-medium text-slate-700">
+                {teacherName}
+              </span>
+              <span className="block truncate text-xs text-slate-500">{teacherEmail}</span>
+            </span>
+            <Link
+              href="/advanced"
+              className="min-h-11 rounded-lg px-3 py-3 text-sm font-medium text-slate-500 hover:bg-slate-100"
+            >
+              Advanced
+            </Link>
+            <SignOutButton />
+          </div>
         </div>
         <nav
           aria-label="Mobile navigation"

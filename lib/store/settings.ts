@@ -1071,6 +1071,21 @@ function stripLegacyServerBaseUrl(state: Partial<SettingsState>): void {
   }
 }
 
+/** Provider credentials are request secrets, never durable browser settings. */
+function stripPersistedClientSecrets<T>(value: T): T {
+  if (Array.isArray(value)) return value.map(stripPersistedClientSecrets) as T;
+  if (!value || typeof value !== 'object') return value;
+  const result: Record<string, unknown> = {};
+  for (const [key, item] of Object.entries(value as Record<string, unknown>)) {
+    if (key === 'apiKey' || key === 'accessKeySecret' || key === 'authorization') {
+      result[key] = '';
+    } else {
+      result[key] = stripPersistedClientSecrets(item);
+    }
+  }
+  return result as T;
+}
+
 export const useSettingsStore = create<SettingsState>()(
   persist(
     (set, get) => {
@@ -2284,9 +2299,10 @@ export const useSettingsStore = create<SettingsState>()(
         onWriteRefused: () => recovery.rehydrate?.(),
       }),
       version: SETTINGS_PERSIST_VERSION,
+      partialize: (state) => stripPersistedClientSecrets(state),
       // Migrate persisted state
       migrate: (persistedState: unknown, version: number) => {
-        const state = persistedState as Partial<SettingsState>;
+        const state = stripPersistedClientSecrets(persistedState) as Partial<SettingsState>;
 
         // v0 → v1: clear hardcoded default model so user must actively select
         if (version === 0) {
@@ -2525,7 +2541,10 @@ export const useSettingsStore = create<SettingsState>()(
         // The insert toolbar is draggable and no longer collapses. Sanitize
         // this retired property on every rehydrate instead of bumping the
         // storage version and replaying unrelated legacy migrations.
-        const persisted = { ...(persistedState as object) } as Record<string, unknown>;
+        const persisted = stripPersistedClientSecrets({ ...(persistedState as object) }) as Record<
+          string,
+          unknown
+        >;
         delete persisted.editInsertToolbarCollapsed;
         const merged = { ...currentState, ...persisted };
         ensureBuiltInProviders(merged as Partial<SettingsState>);

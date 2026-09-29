@@ -23,6 +23,8 @@ import {
   type LlmStage,
   type UserStageRoute,
 } from '@/lib/server/model-routes';
+import { resolveTeacherProviderCredential } from '@/lib/server/auth/credential-vault';
+import { resolveTeacherSessionRequest } from '@/lib/server/auth/session';
 
 export interface ResolvedModel extends ModelWithInfo {
   /** Original model string (e.g. "openai/gpt-4o-mini") */
@@ -190,6 +192,19 @@ export async function resolveModelFromHeaders(
   stage?: LlmStage,
   thinkingConfig?: ThinkingConfig,
 ): Promise<ResolvedModel> {
+  const teacher = await resolveTeacherSessionRequest(req);
+  if (teacher) {
+    const credential = await resolveTeacherProviderCredential(teacher.id);
+    if (!credential) {
+      throw new Error('AI_PROVIDER_SETUP_REQUIRED');
+    }
+    return resolveModel({
+      modelString: `${credential.providerId}/${credential.modelId}`,
+      stage,
+      apiKey: credential.apiKey,
+      thinkingConfig,
+    });
+  }
   return resolveModel({
     modelString: req.headers.get('x-model') || undefined,
     stage,

@@ -19,12 +19,17 @@ import {
 } from '@/lib/media/asset-pool-config';
 import { assertRuntimeStorageConfigurable, configureRuntimeStorage } from '@/lib/runtime/config';
 import { getLearnerKey } from '@/lib/runtime/learner-key';
+import { FirestoreDocumentStore } from '@/lib/persistence/firestore-document-store';
 
 let deviceKv: BrowserKVStore | undefined;
 let learnerKeyPromise: Promise<string> | undefined;
 
 export function isBrowserPersistenceEnabled(): boolean {
   return typeof window !== 'undefined' && process.env.NEXT_PUBLIC_PERSISTENCE === '1';
+}
+
+export function isFirebaseLessonPersistenceEnabled(): boolean {
+  return typeof window !== 'undefined' && Boolean(process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID);
 }
 
 export function getPersistenceLearnerKey(): Promise<string> {
@@ -49,7 +54,9 @@ export async function getPersistenceRequestHeaders(): Promise<Record<string, str
   };
 }
 
-if (isBrowserPersistenceEnabled()) {
+if (isFirebaseLessonPersistenceEnabled()) {
+  configureDocumentStorage({ store: () => new FirestoreDocumentStore() });
+} else if (isBrowserPersistenceEnabled()) {
   const learnerKey = getPersistenceLearnerKey;
   const headers = getPersistenceRequestHeaders;
 

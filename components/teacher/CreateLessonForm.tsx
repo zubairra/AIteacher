@@ -8,7 +8,6 @@ import { GenerationToolbar } from '@/components/generation/generation-toolbar';
 import { SettingsDialog } from '@/components/settings';
 import { Button } from '@/components/ui/button';
 import { useSettingsStore } from '@/lib/store/settings';
-import { hasUsableLLMProvider } from '@/lib/store/settings-validation';
 import {
   courseMaterialFingerprint,
   dedupeCourseMaterialFiles,
@@ -158,12 +157,24 @@ export function CreateLessonForm() {
       return;
     }
 
-    const settings = useSettingsStore.getState();
-    if (!hasUsableLLMProvider(settings.providersConfig)) {
-      setGeneralError('Set up an AI model before generating your lesson.');
-      openSettings('model-services');
+    const providerResponse = await fetch('/api/teacher/providers', { cache: 'no-store' });
+    if (!providerResponse.ok) {
+      setGeneralError('AI provider setup required. Add an API key once to generate lessons.');
       return;
     }
+    const providerState = (await providerResponse.json()) as {
+      credentials?: Array<{ configured: boolean }>;
+      preference?: { providerId: string | null };
+    };
+    if (
+      !providerState.preference?.providerId ||
+      !providerState.credentials?.some((item) => item.configured)
+    ) {
+      setGeneralError('AI provider setup required. Add an API key once to generate lessons.');
+      return;
+    }
+
+    const settings = useSettingsStore.getState();
 
     setErrors({});
     setGeneralError(null);
@@ -380,6 +391,15 @@ export function CreateLessonForm() {
             className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200"
           >
             {generalError}
+            {generalError.startsWith('AI provider setup required') ? (
+              <button
+                type="button"
+                className="ml-3 font-semibold underline underline-offset-4"
+                onClick={() => router.push('/settings')}
+              >
+                Configure AI
+              </button>
+            ) : null}
           </div>
         ) : null}
 
