@@ -87,4 +87,24 @@ describe('POST /api/verify-model', () => {
       { mode: 'disabled', enabled: false },
     );
   });
+
+  it.each([
+    [401, 'Incorrect API key provided', 401, 'API key is invalid.'],
+    [429, 'insufficient quota', 429, 'Provider quota or billing limit exceeded.'],
+    [404, 'model does not exist', 404, 'Selected model is unavailable.'],
+    [502, 'invalid response JSON', 502, 'Provider returned an invalid response.'],
+  ])(
+    'returns a safe normalized provider failure for status %i',
+    async (statusCode, message, expectedStatus, expectedMessage) => {
+      mocks.callLLM.mockRejectedValue(Object.assign(new Error(message), { statusCode }));
+      const response = await postVerifyModel({
+        model: 'qwen:qwen3.7-plus',
+        apiKey: 'not-a-real-key',
+      });
+      const json = await response.json();
+      expect(response.status).toBe(expectedStatus);
+      expect(json.error).toBe(expectedMessage);
+      expect(JSON.stringify(json)).not.toContain('not-a-real-key');
+    },
+  );
 });

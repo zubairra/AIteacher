@@ -46,6 +46,123 @@ function statusFromError(error: unknown, seen = new Set<unknown>()): number | un
   return statusFromError(error.cause, seen) ?? statusFromError(error.lastError, seen);
 }
 
+export type NormalizedLlmErrorCode =
+  | 'INVALID_API_KEY'
+  | 'PROVIDER_QUOTA_EXCEEDED'
+  | 'RATE_LIMITED'
+  | 'MODEL_UNAVAILABLE'
+  | 'PROVIDER_INVALID_RESPONSE'
+  | 'STRUCTURED_OUTPUT_INVALID'
+  | 'SAFETY_REFUSAL'
+  | 'PROVIDER_UNREACHABLE'
+  | 'UPSTREAM_ERROR';
+
+export interface NormalizedLlmError {
+  code: NormalizedLlmErrorCode;
+  message: string;
+  status?: number;
+  retryable: boolean;
+}
+
+function errorText(error: unknown, seen = new Set<unknown>()): string {
+  if (!error || seen.has(error)) return '';
+  seen.add(error);
+  if (error instanceof Error) {
+    return `${error.name} ${error.message} ${errorText(error.cause, seen)}`.toLowerCase();
+  }
+  if (!isRecord(error)) return String(error).toLowerCase();
+  return `${String(error.name ?? '')} ${String(error.message ?? '')} ${errorText(error.cause, seen)} ${errorText(error.lastError, seen)}`.toLowerCase();
+}
+
+/** Convert SDK/provider failures into stable, secret-free teacher-facing categories. */
+export function normalizeLlmError(error: unknown): NormalizedLlmError {
+  const status = statusFromError(error);
+  const text = errorText(error);
+
+  if (
+    status === 401 ||
+    status === 403 ||
+    /incorrect api key|invalid api key|authentication/.test(text)
+  ) {
+    return { code: 'INVALID_API_KEY', message: 'API key is invalid.', status, retryable: false };
+  }
+  if (/quota|billing|insufficient[_ -]?funds|credit balance/.test(text)) {
+    return {
+      code: 'PROVIDER_QUOTA_EXCEEDED',
+      message: 'Provider quota or billing limit exceeded.',
+      status,
+      retryable: false,
+    };
+  }
+  if (status === 429) {
+    return {
+      code: 'RATE_LIMITED',
+      message: 'Provider rate limit reached. Please try again shortly.',
+      status,
+      retryable: true,
+    };
+  }
+  if (
+    status === 404 ||
+    /model.+(not found|unavailable|does not exist)|unsupported model/.test(text)
+  ) {
+    return {
+      code: 'MODEL_UNAVAILABLE',
+      message: 'Selected model is unavailable.',
+      status,
+      retryable: false,
+    };
+  }
+  if (/noobjectgenerated|structured output|schema validation|invalid json/.test(text)) {
+    return {
+      code: 'STRUCTURED_OUTPUT_INVALID',
+      message: 'Provider returned invalid structured output.',
+      status,
+      retryable: false,
+    };
+  }
+  if (/content filter|safety|\brefusal\b|request was refused/.test(text)) {
+    return {
+      code: 'SAFETY_REFUSAL',
+      message: 'Provider declined this request because of its safety policy.',
+      status,
+      retryable: false,
+    };
+  }
+  if (/json|parse|unexpected response|invalid response/.test(text)) {
+    return {
+      code: 'PROVIDER_INVALID_RESPONSE',
+      message: 'Provider returned an invalid response.',
+      status,
+      retryable: false,
+    };
+  }
+  if (
+    status === undefined &&
+    /enotfound|econnrefused|econnreset|network|fetch failed|timeout|timed out/.test(text)
+  ) {
+    return {
+      code: 'PROVIDER_UNREACHABLE',
+      message: 'Unable to contact AI provider.',
+      retryable: true,
+    };
+  }
+  if (status !== undefined && status >= 500) {
+    return {
+      code: 'PROVIDER_UNREACHABLE',
+      message: 'AI provider is temporarily unavailable.',
+      status,
+      retryable: true,
+    };
+  }
+  return {
+    code: 'UPSTREAM_ERROR',
+    message: 'AI provider rejected the request.',
+    status,
+    retryable: false,
+  };
+}
+
 function messageForStatus(status: number): string {
   if (status === 401 || status === 403) {
     return 'Upstream authentication or authorization failed.';
@@ -61,14 +178,15 @@ function messageForStatus(status: number): string {
  * exposing provider response bodies, URLs, or credential-adjacent details.
  */
 export function llmApiError(error: unknown) {
-  const status = statusFromError(error);
+  const normalized = normalizeLlmError(error);
+  const status = normalized.status;
   if (status === undefined) {
     return apiError('INTERNAL_ERROR', 500, 'Scene generation failed. Please try again.');
   }
 
   return apiError(
-    status === 429 ? 'RATE_LIMITED' : 'UPSTREAM_ERROR',
+    normalized.code === 'RATE_LIMITED' ? 'RATE_LIMITED' : 'UPSTREAM_ERROR',
     status,
-    messageForStatus(status),
+    normalized.message || messageForStatus(status),
   );
 }

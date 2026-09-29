@@ -549,3 +549,89 @@ describe('task-engine outline route', () => {
     expect(done.outlines[0].widgetOutline).toBeUndefined();
   });
 });
+
+describe('scene outline provider error propagation', () => {
+  test('does not replace an upstream authentication failure with an empty-response error', async () => {
+    vi.resetModules();
+    streamLLMMock.mockReset();
+    resolveModelFromRequestMock.mockReset();
+    resolveModelFromRequestMock.mockResolvedValue({
+      model: { provider: 'qwen.chat', modelId: 'qwen3.7-plus' },
+      modelInfo: { outputWindow: 4096, capabilities: {} },
+      modelString: 'qwen:qwen3.7-plus',
+      providerId: 'qwen',
+      modelId: 'qwen3.7-plus',
+      thinkingConfig: undefined,
+    });
+    streamLLMMock.mockImplementation(
+      (params: { onError?: (event: { error: unknown }) => void }) => {
+        params.onError?.({
+          error: Object.assign(new Error('Incorrect API key provided.'), { statusCode: 401 }),
+        });
+        return { textStream: (async function* () {})() };
+      },
+    );
+
+    const { POST } = await import('@/app/api/generate/scene-outlines-stream/route');
+    const response = await POST(
+      mockRequest({
+        requirement: 'A teacher-led lesson',
+        interactiveMode: false,
+      }) as unknown as Parameters<typeof POST>[0],
+    );
+    const events = parseSseEvents(await readStreamBody(response));
+
+    expect(streamLLMMock).toHaveBeenCalledTimes(1);
+    expect(events.at(-1)).toMatchObject({
+      type: 'error',
+      errorCode: 'INVALID_API_KEY',
+      error: 'API key is invalid.',
+    });
+    expect(JSON.stringify(events)).not.toContain('empty response');
+  });
+
+  test.each([
+    {
+      name: 'successful stream with no text',
+      chunks: [],
+      errorCode: 'GENERATION_EMPTY',
+      message: 'Generation returned no usable content.',
+    },
+    {
+      name: 'non-empty malformed provider response',
+      chunks: ['not valid outline json'],
+      errorCode: 'OUTLINE_PARSE_FAILED',
+      message: 'LLM response could not be parsed into outlines',
+    },
+  ])('classifies $name without fabricating content', async ({ chunks, errorCode, message }) => {
+    vi.resetModules();
+    streamLLMMock.mockReset();
+    resolveModelFromRequestMock.mockReset();
+    resolveModelFromRequestMock.mockResolvedValue({
+      model: { provider: 'qwen.chat', modelId: 'qwen3.7-plus' },
+      modelInfo: { outputWindow: 4096, capabilities: {} },
+      modelString: 'qwen:qwen3.7-plus',
+      providerId: 'qwen',
+      modelId: 'qwen3.7-plus',
+      thinkingConfig: undefined,
+    });
+    streamLLMMock.mockImplementation(() => ({
+      textStream: (async function* () {
+        for (const chunk of chunks) yield chunk;
+      })(),
+    }));
+
+    const { POST } = await import('@/app/api/generate/scene-outlines-stream/route');
+    const response = await POST(
+      mockRequest({
+        requirement: 'A teacher-led lesson',
+        interactiveMode: false,
+      }) as unknown as Parameters<typeof POST>[0],
+    );
+    const events = parseSseEvents(await readStreamBody(response));
+
+    expect(streamLLMMock).toHaveBeenCalledTimes(3);
+    expect(events.at(-1)).toMatchObject({ type: 'error', errorCode, error: message });
+    expect(events.some((event) => event.type === 'done')).toBe(false);
+  });
+});

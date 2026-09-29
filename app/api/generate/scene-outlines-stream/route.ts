@@ -41,6 +41,7 @@ import { resolveModelFromRequest } from '@/lib/server/resolve-model';
 import { sortDocumentImagesForVision } from '@/lib/document/bundle';
 import { resolveVisionImagesForPrompt } from '@/lib/persistence/resolve-vision-images';
 import { resolveVocationalActive } from '@/lib/config/feature-flags';
+import { normalizeLlmError, type NormalizedLlmErrorCode } from '@/lib/server/llm-error-response';
 const log = createLogger('Outlines Stream');
 
 export const maxDuration = 300;
@@ -518,6 +519,11 @@ export async function POST(req: NextRequest) {
           let languageDirective: string | null = null;
           let courseTitle: string | null = null;
           let lastError: string | undefined;
+          let lastErrorCode:
+            | NormalizedLlmErrorCode
+            | 'GENERATION_EMPTY'
+            | 'OUTLINE_PARSE_FAILED'
+            | undefined;
 
           for (let attempt = 1; attempt <= MAX_STREAM_RETRIES + 1; attempt++) {
             try {
@@ -527,8 +533,14 @@ export async function POST(req: NextRequest) {
               languageDirective = null;
               courseTitle = null;
               const usedOutlineIds = new Set<string>();
+              let providerStreamError: unknown;
               const textStream = streamLLM(
-                streamParams,
+                {
+                  ...streamParams,
+                  onError: (event: { error: unknown }) => {
+                    providerStreamError = event.error;
+                  },
+                },
                 'scene-outlines-stream',
                 thinkingConfig,
               ).textStream;
@@ -602,6 +614,26 @@ export async function POST(req: NextRequest) {
                 }
               }
 
+              // AI SDK text streams end after an error event. Without reading
+              // onError, an upstream 401/429/etc. is indistinguishable from a
+              // successful stream containing zero text.
+              if (providerStreamError) {
+                const normalized = normalizeLlmError(providerStreamError);
+                lastError = normalized.message;
+                lastErrorCode = normalized.code;
+                log.warn(
+                  `Outline provider failure [code=${normalized.code}, status=${normalized.status ?? 'unknown'}, retryable=${normalized.retryable}, model=${resolvedModelString ?? 'unknown'}]`,
+                );
+                if (!normalized.retryable || attempt > MAX_STREAM_RETRIES) break;
+                const retryEvent = JSON.stringify({
+                  type: 'retry',
+                  attempt,
+                  maxAttempts: MAX_STREAM_RETRIES + 1,
+                });
+                controller.enqueue(encoder.encode(`data: ${retryEvent}\n\n`));
+                continue;
+              }
+
               // Validate: got outlines?
               if (parsedOutlines.length > 0) {
                 if (!courseTitle) {
@@ -616,7 +648,8 @@ export async function POST(req: NextRequest) {
               // Empty result — retry if we have attempts left
               lastError = fullText.trim()
                 ? 'LLM response could not be parsed into outlines'
-                : 'LLM returned empty response';
+                : 'Generation returned no usable content.';
+              lastErrorCode = fullText.trim() ? 'OUTLINE_PARSE_FAILED' : 'GENERATION_EMPTY';
               log.warn(
                 `Outlines attempt ${attempt} diagnostics: textLen=${fullText.length}, outlines=${parsedOutlines.length}, languageDirective=${languageDirective ? 'yes' : 'no'}, preview=${JSON.stringify(fullText.slice(0, 240))}`,
               );
@@ -640,10 +673,14 @@ export async function POST(req: NextRequest) {
                 stopHeartbeat();
                 return;
               }
-              lastError = error instanceof Error ? error.message : String(error);
+              const normalized = normalizeLlmError(error);
+              lastError = normalized.message;
+              lastErrorCode = normalized.code;
               log.warn(
-                `Outlines stream error detail (attempt ${attempt}/${MAX_STREAM_RETRIES + 1}): ${lastError}`,
+                `Outline stream failure [code=${normalized.code}, status=${normalized.status ?? 'unknown'}, retryable=${normalized.retryable}, attempt=${attempt}/${MAX_STREAM_RETRIES + 1}, model=${resolvedModelString ?? 'unknown'}]`,
               );
+
+              if (!normalized.retryable) break;
 
               if (attempt <= MAX_STREAM_RETRIES) {
                 log.warn(
@@ -681,6 +718,7 @@ export async function POST(req: NextRequest) {
             const errorEvent = JSON.stringify({
               type: 'error',
               error: lastError || 'Failed to generate outlines',
+              errorCode: lastErrorCode || 'UPSTREAM_ERROR',
             });
             controller.enqueue(encoder.encode(`data: ${errorEvent}\n\n`));
           }
