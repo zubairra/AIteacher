@@ -1,4 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+vi.mock('@/lib/server/auth/generation-access', () => ({
+  requireTeacherGeneration: async () => null,
+  generationSetupResponse: () => null,
+}));
 import type { SceneOutline } from '@/lib/types/generation';
 import { legacyPBLSceneFixture } from '@/tests/fixtures/pbl-v1-scene';
 

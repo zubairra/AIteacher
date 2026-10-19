@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { createLogger } from '@/lib/logger';
 import { apiError, apiSuccess } from '@/lib/server/api-response';
 import { resolveModel } from '@/lib/server/resolve-model';
+import { resolveTeacherSessionRequest } from '@/lib/server/auth/session';
 import { callLLM } from '@/lib/ai/llm';
 import { normalizeLlmError } from '@/lib/server/llm-error-response';
 const log = createLogger('Verify Model');
@@ -20,11 +21,13 @@ export async function POST(req: NextRequest) {
     // Parse model string and resolve server-side fallback
     let languageModel;
     try {
+      const teacher = await resolveTeacherSessionRequest(req);
       const result = await resolveModel({
         modelString: model,
         apiKey: apiKey || '',
         baseUrl: baseUrl || undefined,
         providerType,
+        allowManagedServerKey: Boolean(teacher),
       });
       languageModel = result.model;
     } catch (error) {

@@ -147,6 +147,10 @@ function GenerationPreviewContent() {
   const isReviewingOutlines = session?.previewPhase === 'review';
 
   const sceneGenerationErrorMessage = (failure: SceneGenerationFailure): string => {
+    if (failure.errorCode === 'AI_PROVIDER_SETUP_REQUIRED') {
+      return failure.error || t('generation.sceneGenerateFailed');
+    }
+
     if (
       failure.errorCode === 'MISSING_API_KEY' ||
       failure.statusCode === 401 ||

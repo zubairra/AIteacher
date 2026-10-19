@@ -11,7 +11,10 @@ import {
   query,
   runTransaction,
   writeBatch,
+  type Firestore,
+  type WriteBatch,
 } from 'firebase/firestore';
+import { chunkWriteOperations } from '@/lib/persistence/firestore-batch';
 
 import type { AppDocument, AppStage } from '@/lib/document-store/persistence-types';
 import { validateAppScene, validateAppStage } from '@/lib/document-store/validators';
@@ -20,6 +23,16 @@ import type { AppScene } from '@/lib/types/stage';
 
 export function firebaseLessonPath(uid: string, stageId: string) {
   return `users/${uid}/lessons/${stageId}`;
+}
+
+type BatchOperation = (batch: WriteBatch) => void;
+
+async function commitBatched(db: Firestore, operations: BatchOperation[]): Promise<void> {
+  for (const chunk of chunkWriteOperations(operations)) {
+    const batch = writeBatch(db);
+    chunk.forEach((operation) => operation(batch));
+    await batch.commit();
+  }
 }
 
 function summary(
@@ -51,25 +64,31 @@ export class FirestoreDocumentStore implements DocumentStore<AppScene, AppStage>
     const lesson = doc(db, firebaseLessonPath(uid, document.stage.id));
     const existing = await getDoc(lesson);
     const oldScenes = await getDocs(collection(lesson, 'scenes'));
-    const batch = writeBatch(db);
     const incoming = new Set(document.scenes.map((scene) => scene.id));
-    for (const stored of oldScenes.docs) if (!incoming.has(stored.id)) batch.delete(stored.ref);
-    for (const scene of document.scenes) batch.set(doc(lesson, 'scenes', scene.id), { scene });
     const now = Date.now();
-    batch.set(lesson, {
-      version: 1,
-      ownerUid: uid,
-      stage: document.stage,
-      outline: document.outline ?? null,
-      dslVersion: document.dslVersion ?? null,
-      ...summary(
-        document.stage,
-        document.scenes.length,
-        Number(existing.data()?.createdAt ?? now),
-        now,
-      ),
-    });
-    await batch.commit();
+    const operations: BatchOperation[] = [];
+    for (const stored of oldScenes.docs) {
+      if (!incoming.has(stored.id)) operations.push((batch) => batch.delete(stored.ref));
+    }
+    for (const scene of document.scenes) {
+      operations.push((batch) => batch.set(doc(lesson, 'scenes', scene.id), { scene }));
+    }
+    operations.push((batch) =>
+      batch.set(lesson, {
+        version: 1,
+        ownerUid: uid,
+        stage: document.stage,
+        outline: document.outline ?? null,
+        dslVersion: document.dslVersion ?? null,
+        ...summary(
+          document.stage,
+          document.scenes.length,
+          Number(existing.data()?.createdAt ?? now),
+          now,
+        ),
+      }),
+    );
+    await commitBatched(db, operations);
   }
 
   async loadDocument(stageId: string): Promise<MaicDocument<AppScene, AppStage> | null> {
@@ -125,10 +144,11 @@ export class FirestoreDocumentStore implements DocumentStore<AppScene, AppStage>
     const { db } = getFirebaseClient();
     const lesson = doc(db, firebaseLessonPath(uid, stageId));
     const scenes = await getDocs(collection(lesson, 'scenes'));
-    const batch = writeBatch(db);
-    scenes.docs.forEach((scene) => batch.delete(scene.ref));
-    batch.delete(lesson);
-    await batch.commit();
+    const operations: BatchOperation[] = scenes.docs.map(
+      (scene) => (batch) => batch.delete(scene.ref),
+    );
+    operations.push((batch) => batch.delete(lesson));
+    await commitBatched(db, operations);
   }
 
   async putStage(stageId: string, stage: AppStage): Promise<void> {

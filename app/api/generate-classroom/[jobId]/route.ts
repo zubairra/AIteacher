@@ -1,5 +1,6 @@
 import { type NextRequest } from 'next/server';
 import { apiError, apiSuccess } from '@/lib/server/api-response';
+import { requireTeacherGeneration } from '@/lib/server/auth/generation-access';
 import {
   isValidClassroomJobId,
   readClassroomGenerationJob,
@@ -12,6 +13,8 @@ const log = createLogger('ClassroomJob API');
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest, context: { params: Promise<{ jobId: string }> }) {
+  const denied = await requireTeacherGeneration(req);
+  if (denied) return denied;
   let resolvedJobId: string | undefined;
   try {
     const { jobId } = await context.params;
