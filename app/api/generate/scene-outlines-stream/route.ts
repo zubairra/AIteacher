@@ -38,6 +38,10 @@ import type {
 import { apiError } from '@/lib/server/api-response';
 import { createLogger } from '@/lib/logger';
 import { resolveModelFromRequest } from '@/lib/server/resolve-model';
+import {
+  generationSetupResponse,
+  requireTeacherGeneration,
+} from '@/lib/server/auth/generation-access';
 import { sortDocumentImagesForVision } from '@/lib/document/bundle';
 import { resolveVisionImagesForPrompt } from '@/lib/persistence/resolve-vision-images';
 import { resolveVocationalActive } from '@/lib/config/feature-flags';
@@ -287,6 +291,8 @@ function ensureUniqueOutlineId(outline: SceneOutline, usedIds: Set<string>): Sce
 }
 
 export async function POST(req: NextRequest) {
+  const denied = await requireTeacherGeneration(req);
+  if (denied) return denied;
   let requirementSnippet: string | undefined;
   let resolvedModelString: string | undefined;
   try {
@@ -748,10 +754,12 @@ export async function POST(req: NextRequest) {
       },
     });
   } catch (error) {
+    const setup = generationSetupResponse(error);
+    if (setup) return setup;
     log.error(
       `Outline streaming failed [requirement="${requirementSnippet ?? 'unknown'}...", model=${resolvedModelString ?? 'unknown'}]:`,
       error,
     );
-    return apiError('INTERNAL_ERROR', 500, error instanceof Error ? error.message : String(error));
+    return apiError('INTERNAL_ERROR', 500, 'Outline generation failed. Please try again.');
   }
 }

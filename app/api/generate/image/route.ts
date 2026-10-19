@@ -29,6 +29,7 @@ import {
 import type { ImageProviderId, ImageGenerationOptions } from '@/lib/media/types';
 import { createLogger } from '@/lib/logger';
 import { apiError, apiSuccess } from '@/lib/server/api-response';
+import { requireTeacherGeneration } from '@/lib/server/auth/generation-access';
 import { validateUrlForSSRF } from '@/lib/server/ssrf-guard';
 import { resolveImageSize } from '@/lib/server/image-sizing';
 
@@ -42,6 +43,8 @@ const log = createLogger('ImageGeneration API');
 export const maxDuration = 300;
 
 export async function POST(request: NextRequest) {
+  const denied = await requireTeacherGeneration(request);
+  if (denied) return denied;
   try {
     const body = (await request.json()) as ImageGenerationOptions;
 

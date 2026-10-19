@@ -30,12 +30,18 @@ import { normalizeLegacyPBLContent } from '@/lib/pbl/legacy/read';
 import { apiError, apiSuccess } from '@/lib/server/api-response';
 import { llmApiError } from '@/lib/server/llm-error-response';
 import { resolveModelFromRequest } from '@/lib/server/resolve-model';
+import {
+  generationSetupResponse,
+  requireTeacherGeneration,
+} from '@/lib/server/auth/generation-access';
 
 const log = createLogger('Scene Actions API');
 
 export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {
+  const denied = await requireTeacherGeneration(req);
+  if (denied) return denied;
   let outlineTitle: string | undefined;
   let resolvedModelString: string | undefined;
   try {
@@ -194,6 +200,8 @@ export async function POST(req: NextRequest) {
 
     return apiSuccess({ scene, previousSpeeches: outputPreviousSpeeches });
   } catch (error) {
+    const setup = generationSetupResponse(error);
+    if (setup) return setup;
     log.error(
       `Scene actions generation failed [scene="${outlineTitle ?? 'unknown'}", model=${resolvedModelString ?? 'unknown'}]:`,
       error,

@@ -114,6 +114,7 @@ export function buildOutlinePrompt(
     researchContext: context.researchContext || 'None',
     teacherContext: [context.teacherContext, teacherModeContext].filter(Boolean).join('\n\n'),
     teacherMode: isTeacherLedRequirements(requirements),
+    learnerCourse: !isTeacherLedRequirements(requirements),
   });
 
   if (!prompts) {

@@ -11,6 +11,10 @@ import { callLLM } from '@/lib/ai/llm';
 import { createLogger } from '@/lib/logger';
 import { apiError, apiSuccess } from '@/lib/server/api-response';
 import { resolveModelFromRequest } from '@/lib/server/resolve-model';
+import {
+  generationSetupResponse,
+  requireTeacherGeneration,
+} from '@/lib/server/auth/generation-access';
 import { AGENT_COLOR_PALETTE } from '@/lib/constants/agent-defaults';
 import { normalizeVoiceDesign } from '@/lib/audio/voice-design';
 import { isQwenCloneVoice, resolveTTSModelForVoice } from '@/lib/audio/constants';
@@ -128,6 +132,8 @@ function stripCodeFences(text: string): string {
 }
 
 export async function POST(req: NextRequest) {
+  const denied = await requireTeacherGeneration(req);
+  if (denied) return denied;
   let stageName: string | undefined;
   let modelString: string | undefined;
   try {
@@ -359,10 +365,12 @@ Return a JSON object with this exact structure:
 
     return apiSuccess({ agents });
   } catch (error) {
+    const setup = generationSetupResponse(error);
+    if (setup) return setup;
     log.error(
       `Agent profiles generation failed [stage="${stageName ?? 'unknown'}", model=${modelString ?? 'unknown'}]:`,
       error,
     );
-    return apiError('INTERNAL_ERROR', 500, error instanceof Error ? error.message : String(error));
+    return apiError('INTERNAL_ERROR', 500, 'Agent profile generation failed. Please try again.');
   }
 }

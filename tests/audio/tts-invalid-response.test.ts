@@ -1,4 +1,9 @@
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
+
+vi.mock('@/lib/server/auth/generation-access', () => ({
+  requireTeacherGeneration: async () => null,
+  generationSetupResponse: () => null,
+}));
 import { generateTTS, TTSInvalidResponseError } from '@/lib/audio/tts-providers';
 
 const mockFetch = vi.hoisted(() => vi.fn() as Mock);

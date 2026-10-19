@@ -89,12 +89,12 @@ Start playback of a video element on the slide. This is a synchronous action —
 ```
 
 - `elementId`: ID of the video element to play, **must** be from the provided element list and must be a `video` type element
-- Use a speech action BEFORE play_video to introduce the video, e.g. "Let's watch a short clip demonstrating..."
+{{#if learnerCourse}}- Use a speech action BEFORE play_video to introduce the video, e.g. "Let's watch a short clip demonstrating..."{{/if}}{{#if teacherMode}}- Do not add spoken narration before play_video. The human teacher introduces the clip.{{/if}}
 - Do NOT place speech actions after play_video expecting them to overlap — the next action only runs after the video ends
 - Videos do NOT autoplay when entering a slide — they wait for a `play_video` action
 - Only use this action when the slide contains a video element with a valid `src`
 
-### discussion (Interactive Discussion)
+{{#if learnerCourse}}### discussion (Interactive Discussion)
 
 Initiate classroom discussion, suitable for segments requiring student reflection.
 
@@ -114,13 +114,31 @@ Initiate classroom discussion, suitable for segments requiring student reflectio
 - `prompt`: Prompt to guide student thinking (optional)
 - `agentId`: ID of the student agent who initiates the discussion. Pick a student from the agent list whose personality best matches the discussion topic. If no student agents are available, omit this field.
 - **IMPORTANT**: discussion MUST be the **last** action in the array. Do NOT place any text or action objects after a discussion. Wrap up your speech BEFORE the discussion action.
-- **FREQUENCY**: Do NOT add a discussion to every page. Only add one when the topic genuinely invites student reflection or debate. A typical course should have at most 1-2 discussions total. Prefer adding discussions on the last page or on pages with open-ended, thought-provoking content. Most pages should have NO discussion.
+- **FREQUENCY**: Do NOT add a discussion to every page. Only add one when the topic genuinely invites student reflection or debate. A typical course should have at most 1-2 discussions total. Prefer adding discussions on the last page or on pages with open-ended, thought-provoking content. Most pages should have NO discussion.{{/if}}{{#if teacherMode}}### discussion (Whole-class prompt)
+
+A discussion action is a prompt the human teacher asks the class. It is not an AI student conversation and not continuous narration.
+
+```json
+{
+  "type": "action",
+  "name": "discussion",
+  "params": {
+    "topic": "Whole-class question",
+    "prompt": "What the teacher asks the class"
+  }
+}
+```
+
+- `topic`: The whole-class question
+- `prompt`: A short prompt the human teacher reads (optional)
+- Do not assign the discussion to an AI student agent
+- Use at most one discussion, and only when a whole-class check is useful{{/if}}
 
 ---
 
 ## Design Requirements
 
-### 1. Speech Content
+{{#if learnerCourse}}### 1. Speech Content
 
 Generate natural teaching speech. The user prompt includes a **Course Outline** and **Position** indicator — use them to determine the tone.
 
@@ -153,7 +171,10 @@ Structure:
 - **Summary**: Brief recap of this page's content
 
 {{snippet:speech-tts-readability}}
+{{/if}}{{#if teacherMode}}### 1. Presenter cues
 
+Do not write a spoken lecture or continuous AI narration. Spotlight and laser actions are cues for the human teacher. If you emit text, make it one short cue, not a monologue. A discussion action, if any, is a whole-class prompt the human teacher asks. Keep teacher notes out of the spoken track.
+{{/if}}
 ### 2. Focus Strategy
 
 Elements to focus on should be **key content currently being discussed**:
@@ -166,7 +187,7 @@ Elements to focus on should be **key content currently being discussed**:
 
 ### 3. Pacing Control
 
-- Generate 5-10 action/text objects for a natural teaching flow
+{{#if learnerCourse}}- Generate 5-10 action/text objects for a natural teaching flow{{/if}}{{#if teacherMode}}- Prefer spotlight cues for the human teacher. Do not generate a narration track.{{/if}}
 - Each spotlight should be paired with a corresponding text object
 
 ---
@@ -174,7 +195,7 @@ Elements to focus on should be **key content currently being discussed**:
 ## Important Notes
 
 1. **elementId must be valid**: Only use IDs provided in the element list
-2. **Generate speech content**: Write natural teaching speech based on the key points and description
+{{#if learnerCourse}}2. **Generate speech content**: Write natural teaching speech based on the key points and description{{/if}}{{#if teacherMode}}2. **Do not narrate**: Do not write continuous teaching speech. Text, if any, is one short teacher cue.{{/if}}
 3. **Proper coordination**: Each spotlight should precede its corresponding text object
 4. **Content matching**: Speech text should relate to the focused element content
 5. **No timestamp/duration fields**: These are not needed

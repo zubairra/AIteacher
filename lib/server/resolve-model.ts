@@ -14,6 +14,7 @@ import {
   resolveBaseUrl,
   resolveProxy,
 } from '@/lib/server/provider-config';
+import { ownerManagedProviderFallback } from '@/lib/server/owner-provider-fallback';
 import { validateUrlForSSRF } from '@/lib/server/ssrf-guard';
 import { fetchWithRedirectValidation } from '@/lib/server/fetch-with-redirect-validation';
 import {
@@ -25,6 +26,7 @@ import {
 } from '@/lib/server/model-routes';
 import { resolveTeacherProviderCredential } from '@/lib/server/auth/credential-vault';
 import { resolveTeacherSessionRequest } from '@/lib/server/auth/session';
+import { ProviderSetupError } from '@/lib/server/provider-setup-error';
 
 export interface ResolvedModel extends ModelWithInfo {
   /** Original model string (e.g. "openai/gpt-4o-mini") */
@@ -68,6 +70,18 @@ export async function resolveModel(params: {
   baseUrl?: string;
   providerType?: string;
   thinkingConfig?: ThinkingConfig;
+  /**
+   * When true, `apiKey` is the credential to send even if that provider is
+   * server-managed. Used for a teacher's saved key and for an explicit
+   * server-managed fallback chosen by the server, never a browser header.
+   */
+  callerKeyAuthoritative?: boolean;
+  /**
+   * When false, a server-managed provider key is not used. Anonymous HTTP
+   * callers set this so the owner's key cannot be spent without a teacher session.
+   * Server jobs omit it and keep the managed key.
+   */
+  allowManagedServerKey?: boolean;
 }): Promise<ResolvedModel> {
   // Resolution order: env stage route > user stage route > x-model > DEFAULT_MODEL.
   // A configured stage route is the operator's deliberate per-stage choice and
@@ -111,6 +125,11 @@ export async function resolveModel(params: {
   // public targets, so the hop target is checked regardless of who chose the
   // origin.
   const managed = isServerConfiguredProvider('providers', providerId);
+  const suppliedKey = (clientApiKey || '').trim();
+  // A teacher's saved key (or the server-selected managed fallback passed in
+  // explicitly) must survive a managed-provider override.
+  const honorCallerKey = params.callerKeyAuthoritative === true && suppliedKey.length > 0;
+  const blockManagedServerKey = params.allowManagedServerKey === false;
   const registeredProviderType = getProvider(providerId)?.type;
   if (
     clientProviderType &&
@@ -127,7 +146,7 @@ export async function resolveModel(params: {
   if (effectiveProviderType === 'bedrock' && (providerId !== 'bedrock' || !managed)) {
     throw new Error('Amazon Bedrock must be enabled by the server operator before it can be used.');
   }
-  const clientBaseUrl = managed ? undefined : clientBaseUrlParam || undefined;
+  const clientBaseUrl = managed && !honorCallerKey ? undefined : clientBaseUrlParam || undefined;
   if (clientBaseUrl) {
     const ssrfError = await validateUrlForSSRF(clientBaseUrl);
     if (ssrfError) {
@@ -135,9 +154,18 @@ export async function resolveModel(params: {
     }
   }
 
-  const apiKey = resolveApiKey(providerId, clientApiKey || '');
-  const baseUrl = resolveBaseUrl(providerId, clientBaseUrl);
-  const proxy = resolveProxy(providerId);
+  const apiKey =
+    honorCallerKey || (blockManagedServerKey && managed)
+      ? suppliedKey
+      : resolveApiKey(providerId, clientApiKey || '');
+  // A caller-authoritative key uses the caller's endpoint, or the provider's
+  // public default. It is not sent through an operator gateway merely because
+  // that provider is also server-managed. The owner fallback passes the server
+  // base URL explicitly so the server key still uses that gateway.
+  const baseUrl = honorCallerKey
+    ? clientBaseUrlParam || getProvider(providerId)?.defaultBaseUrl
+    : resolveBaseUrl(providerId, clientBaseUrl);
+  const proxy = honorCallerKey && !clientBaseUrlParam ? undefined : resolveProxy(providerId);
   const { model, modelInfo } = getModel({
     providerId,
     modelId,
@@ -173,6 +201,36 @@ export async function resolveModel(params: {
   };
 }
 
+/**
+ * Signed-in teacher model: the saved provider and key, or the owner's
+ * managed key when the teacher has not saved one. The colon model string
+ * matches parseModelString, so a model id that contains slashes stays on the
+ * saved provider.
+ */
+export async function resolveSignedInTeacherModel(
+  userId: string,
+  thinkingConfig?: ThinkingConfig,
+): Promise<ResolvedModel> {
+  const credential = await resolveTeacherProviderCredential(userId);
+  if (credential) {
+    return resolveModel({
+      modelString: `${credential.providerId}:${credential.modelId}`,
+      apiKey: credential.apiKey,
+      callerKeyAuthoritative: true,
+      thinkingConfig,
+    });
+  }
+  const fallback = ownerManagedProviderFallback();
+  if (!fallback) throw new ProviderSetupError();
+  return resolveModel({
+    modelString: fallback.modelString,
+    apiKey: fallback.apiKey,
+    baseUrl: fallback.baseUrl,
+    callerKeyAuthoritative: true,
+    thinkingConfig,
+  });
+}
+
 function getThinkingConfigFromBody(body: unknown): ThinkingConfig | undefined {
   if (!body || typeof body !== 'object') return undefined;
   const record = body as { thinkingConfig?: unknown; thinking?: unknown };
@@ -194,16 +252,7 @@ export async function resolveModelFromHeaders(
 ): Promise<ResolvedModel> {
   const teacher = await resolveTeacherSessionRequest(req);
   if (teacher) {
-    const credential = await resolveTeacherProviderCredential(teacher.id);
-    if (!credential) {
-      throw new Error('AI_PROVIDER_SETUP_REQUIRED');
-    }
-    return resolveModel({
-      modelString: `${credential.providerId}/${credential.modelId}`,
-      stage,
-      apiKey: credential.apiKey,
-      thinkingConfig,
-    });
+    return resolveSignedInTeacherModel(teacher.id, thinkingConfig);
   }
   return resolveModel({
     modelString: req.headers.get('x-model') || undefined,
@@ -213,6 +262,7 @@ export async function resolveModelFromHeaders(
     baseUrl: req.headers.get('x-base-url') || undefined,
     providerType: req.headers.get('x-provider-type') || undefined,
     thinkingConfig,
+    allowManagedServerKey: false,
   });
 }
 

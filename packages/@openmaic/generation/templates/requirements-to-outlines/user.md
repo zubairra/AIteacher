@@ -91,7 +91,7 @@ Never return a bare array. Never omit `languageDirective` or `courseTitle`. All 
    - Select widgetType based on concept: simulation (physics/chem), diagram (processes), code (programming), game (practice), visualization3d (3D models)
    - Provide appropriate widgetOutline for the widget type
 - **Scene count**: Based on inferred duration, typically 1-2 scenes per minute
-- **Quiz placement**: Recommend inserting a quiz every 3-5 slides for assessment
+{{#if learnerCourse}}- **Quiz placement**: Recommend inserting a quiz every 3-5 slides for assessment{{/if}}{{#if teacherMode}}- **Checks**: Include a few whole-class checks. Put presenter guidance in teacherNotes. Do not design a self-study quiz course or continuous AI narration.{{/if}}
 - **Language**: Infer from the user's requirement text and context, then output all content in the inferred language
 - **If web search results are provided**, reference specific findings and sources in scene descriptions and keyPoints. The search results provide up-to-date information — incorporate it to make the course content current and accurate.
 
