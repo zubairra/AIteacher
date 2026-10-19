@@ -1,10 +1,13 @@
 'use client';
 
 import { useEffect, useState, ReactNode } from 'react';
+import { usePathname } from 'next/navigation';
 import { AccessCodeModal } from '@/components/access-code-modal';
 import { useSettingsStore } from '@/lib/store/settings';
 
 export function AccessCodeGuard({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
+  const studentJoin = pathname === '/join' || pathname.startsWith('/join/');
   const [status, setStatus] = useState<{
     enabled: boolean;
     authenticated: boolean;
@@ -35,7 +38,7 @@ export function AccessCodeGuard({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const needsAuth = !status.loading && status.enabled && !status.authenticated;
+  const needsAuth = !studentJoin && !status.loading && status.enabled && !status.authenticated;
 
   return (
     <>

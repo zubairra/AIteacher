@@ -11,6 +11,7 @@ import {
   Minimize2,
   NotebookPen,
   Pencil,
+  Users,
   Redo2,
   Trash2,
   Undo2,
@@ -36,6 +37,8 @@ import { TeacherNotesContent } from '@/components/teacher/TeacherNotesPanel';
 import { toggleTeacherFullscreen } from '@/lib/teacher/fullscreen';
 import { parseNativeActivity } from '@/lib/teacher/native-activities';
 import { NativeActivitySurface } from '@/components/teacher/activities/NativeActivitySurface';
+import { LiveClassSession } from '@/components/teacher/LiveClassSession';
+import type { LiveSceneSource } from '@/lib/teacher/live-session';
 
 export function TeacherTeachMode() {
   const router = useRouter();
@@ -50,6 +53,8 @@ export function TeacherTeachMode() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [fullscreenNotice, setFullscreenNotice] = useState<string | null>(null);
   const [activityOpen, setActivityOpen] = useState(false);
+  const [liveOpen, setLiveOpen] = useState(false);
+  const [liveCode, setLiveCode] = useState<string | null>(null);
   const metadata = parseTeacherLessonMetadata(stage?.teacherLesson);
   const navigation = useMemo(
     () => getTeacherNavigationState(scenes, currentSceneId),
@@ -61,6 +66,18 @@ export function TeacherTeachMode() {
     : undefined;
   const teacherNotes = parseTeacherNotes(currentScene?.teacherNotes);
   const nativeActivity = parseNativeActivity(currentScene?.nativeActivity);
+  const liveScene = useMemo<LiveSceneSource | null>(() => {
+    if (!currentScene) return null;
+    return {
+      id: currentScene.id,
+      title: currentScene.title,
+      nativeActivity: currentScene.nativeActivity,
+      content:
+        currentScene.content?.type === 'quiz'
+          ? { type: 'quiz', questions: currentScene.content.questions }
+          : undefined,
+    };
+  }, [currentScene]);
 
   const prepareSceneChange = useCallback(() => {
     setAnnotationTool('off');
@@ -209,9 +226,22 @@ export function TeacherTeachMode() {
 
       <nav
         data-testid="teacher-teach-toolbar"
-        className="flex min-h-20 shrink-0 items-center justify-between gap-3 border-t border-white/10 bg-slate-900 px-3 py-2 sm:px-5"
+        className="flex min-h-20 shrink-0 items-center justify-between gap-3 overflow-x-auto border-t border-white/10 bg-slate-900 px-3 py-2 sm:px-5"
         aria-label="Lesson navigation"
       >
+        <button
+          type="button"
+          data-testid="teach-live-class"
+          onClick={() => setLiveOpen(true)}
+          className={toolButtonClass(liveOpen || Boolean(liveCode))}
+          aria-pressed={liveOpen}
+          aria-label={liveCode ? `Live class, code ${liveCode}` : 'Live class'}
+        >
+          <Users className="size-5" aria-hidden="true" />
+          <span className="hidden font-mono tracking-widest 2xl:inline">
+            {liveCode ?? 'Live class'}
+          </span>
+        </button>
         <button
           type="button"
           onClick={() => setActivityOpen(true)}
@@ -342,6 +372,16 @@ export function TeacherTeachMode() {
       ) : null}
       {activityOpen && nativeActivity ? (
         <NativeActivitySurface definition={nativeActivity} onClose={() => setActivityOpen(false)} />
+      ) : null}
+      {liveScene ? (
+        <LiveClassSession
+          lessonId={stage.id}
+          lessonTitle={metadata.topic || stage.name}
+          scene={liveScene}
+          open={liveOpen}
+          onOpenChange={setLiveOpen}
+          onCodeChange={setLiveCode}
+        />
       ) : null}
       <InteractiveIframeHost />
     </main>

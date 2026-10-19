@@ -44,13 +44,23 @@ function LessonCard({ lesson }: { lesson: TeacherLessonListItem }) {
           <Clock3 className="size-3.5" aria-hidden="true" />
           {formatModified(lesson.updatedAt)}
         </p>
-        <Link
-          href={lesson.isTeacherLesson ? `/lessons/${lesson.id}/edit` : `/classroom/${lesson.id}`}
-          className="inline-flex min-h-10 items-center gap-1.5 rounded-lg px-3 text-sm font-semibold text-violet-700 hover:bg-violet-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-600 dark:text-violet-200 dark:hover:bg-violet-950/50"
-        >
-          {lesson.isTeacherLesson ? 'Review' : 'Open'}
-          <ArrowRight className="size-4" aria-hidden="true" />
-        </Link>
+        <div className="flex items-center gap-1">
+          {lesson.isTeacherLesson ? (
+            <Link
+              href={`/lessons/${lesson.id}/results`}
+              className="inline-flex min-h-10 items-center rounded-lg px-3 text-sm font-semibold text-slate-600 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-600 dark:text-slate-300 dark:hover:bg-slate-800"
+            >
+              Results
+            </Link>
+          ) : null}
+          <Link
+            href={lesson.isTeacherLesson ? `/lessons/${lesson.id}/edit` : `/classroom/${lesson.id}`}
+            className="inline-flex min-h-10 items-center gap-1.5 rounded-lg px-3 text-sm font-semibold text-violet-700 hover:bg-violet-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-600 dark:text-violet-200 dark:hover:bg-violet-950/50"
+          >
+            {lesson.isTeacherLesson ? 'Review' : 'Open'}
+            <ArrowRight className="size-4" aria-hidden="true" />
+          </Link>
+        </div>
       </div>
     </article>
   );
