@@ -6,6 +6,62 @@ service cloud.firestore {
       return request.auth != null && request.auth.uid == uid;
     }
 
+    function isAnonymous() {
+      return request.auth != null
+        && request.auth.token.firebase.sign_in_provider == 'anonymous';
+    }
+
+    function isRegisteredTeacher() {
+      return request.auth != null && !isAnonymous();
+    }
+
+    function publicLiveSession(data) {
+      return data.keys().hasOnly([
+          'version',
+          'teacherUid',
+          'lessonId',
+          'lessonTitle',
+          'status',
+          'sceneId',
+          'sceneTitle',
+          'promptIndex',
+          'prompts',
+          'revealed',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.version == 1
+        && data.teacherUid is string
+        && data.lessonId is string
+        && data.lessonId.size() > 0
+        && data.lessonId.size() <= 120
+        && data.lessonTitle is string
+        && data.lessonTitle.size() <= 200
+        && data.status in ['open', 'closed']
+        && data.sceneId is string
+        && data.sceneId.size() <= 120
+        && data.sceneTitle is string
+        && data.sceneTitle.size() <= 200
+        && data.promptIndex is int
+        && data.promptIndex >= 0
+        && data.promptIndex <= 40
+        && data.prompts is list
+        && data.prompts.size() <= 40
+        && data.revealed is bool
+        && data.createdAt is int
+        && data.updatedAt is int;
+    }
+
+    function studentResponse(data) {
+      return data.keys().hasOnly(['displayName', 'answers', 'updatedAt'])
+        && data.displayName is string
+        && data.displayName.size() > 0
+        && data.displayName.size() <= 40
+        && data.answers is map
+        && data.answers.size() <= 40
+        && data.updatedAt is int;
+    }
+
     match /users/{uid} {
       allow read: if signedInAs(uid);
       allow create, update: if signedInAs(uid);
@@ -16,6 +72,16 @@ service cloud.firestore {
           && (request.method == 'delete' || request.resource.data.ownerUid == uid);
         match /scenes/{sceneId} {
           allow read, write: if signedInAs(uid);
+        }
+        // Saved class tallies. Answer keys for a live session live in liveKeys.
+        // Both are readable and writable only by the owning non-anonymous teacher.
+        match /liveResults/{resultId} {
+          allow read, create, update: if isRegisteredTeacher() && signedInAs(uid);
+          allow delete: if false;
+        }
+        match /liveKeys/{code} {
+          allow read, create, update: if isRegisteredTeacher() && signedInAs(uid);
+          allow delete: if false;
         }
       }
 
@@ -29,6 +95,41 @@ service cloud.firestore {
         // Ciphertext is server-only defense in depth. Browser SDK access is
         // denied even to the owning user.
         allow read, write: if false;
+      }
+    }
+
+    // Join-code sessions. The document itself is the student-visible prompt
+    // and must not carry answer keys; those stay under the teacher's lesson.
+    match /liveSessions/{code} {
+      allow get: if (isRegisteredTeacher() && request.auth.uid == resource.data.teacherUid)
+        || isAnonymous();
+      allow list: if false;
+      allow create: if isRegisteredTeacher()
+        && request.auth.uid == request.resource.data.teacherUid
+        && publicLiveSession(request.resource.data)
+        && request.resource.data.status == 'open'
+        && request.resource.data.revealed == false
+        && request.resource.data.promptIndex == 0;
+      allow update: if isRegisteredTeacher()
+        && request.auth.uid == resource.data.teacherUid
+        && publicLiveSession(request.resource.data)
+        && request.resource.data.teacherUid == resource.data.teacherUid
+        && request.resource.data.lessonId == resource.data.lessonId
+        && request.resource.data.createdAt == resource.data.createdAt;
+      allow delete: if false;
+
+      match /responses/{studentUid} {
+        function session() {
+          return get(/databases/$(database)/documents/liveSessions/$(code)).data;
+        }
+        allow read: if (isRegisteredTeacher() && request.auth.uid == session().teacherUid)
+          || (isAnonymous() && request.auth.uid == studentUid);
+        allow create, update: if isAnonymous()
+          && request.auth.uid == studentUid
+          && session().status == 'open'
+          && session().revealed == false
+          && studentResponse(request.resource.data);
+        allow delete: if false;
       }
     }
 

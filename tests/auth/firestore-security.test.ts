@@ -20,5 +20,13 @@ describe('Firestore ownership boundaries', () => {
     );
     expect(rules).toMatch(/match \/settings\/\{settingId\}[\s\S]*?allow read, write: if false;/);
     expect(rules).toContain('allow read, write: if false;');
+    expect(rules).toContain("sign_in_provider == 'anonymous'");
+    expect(rules).toContain('match /liveSessions/{code}');
+    expect(rules).toContain('allow list: if false;');
+    expect(rules).toContain('match /liveKeys/{code}');
+    expect(rules).toContain('match /liveResults/{resultId}');
+    expect(rules).toContain("session().status == 'open'");
+    expect(rules).toContain('session().revealed == false');
+    expect(rules).toContain('request.auth.uid == studentUid');
   });
 });
