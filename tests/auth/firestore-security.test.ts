@@ -15,6 +15,8 @@ describe('Firestore ownership boundaries', () => {
   test('rules bind user data to request.auth.uid and deny credential browser reads', async () => {
     const rules = await readFile('firestore.rules', 'utf8');
     expect(rules).toContain('request.auth.uid == uid');
+    expect(rules).toMatch(/allow read: if signedInAs\(uid\);/);
+    expect(rules).toContain('request.resource.data.ownerUid == uid');
     expect(rules).toMatch(
       /match \/providerCredentials\/\{providerId\}[\s\S]*?allow read, write: if false;/,
     );

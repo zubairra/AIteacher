@@ -5,6 +5,7 @@
  * Each stage has its own storage key based on stageId
  */
 
+import { DSL_VERSION } from '@openmaic/dsl';
 import { Stage, Scene } from '../types/stage';
 import {
   parseTeacherLessonMetadata,
@@ -147,6 +148,7 @@ function documentSnapshot(
       updatedAt: now,
     };
   return {
+    dslVersion: DSL_VERSION,
     stage: stampStage(stageId, data.stage, now),
     scenes: data.scenes.map((scene, index) => stampScene(stageId, scene, index, now)),
     outline: {

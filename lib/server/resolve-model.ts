@@ -25,6 +25,7 @@ import {
   type UserStageRoute,
 } from '@/lib/server/model-routes';
 import { resolveTeacherProviderCredential } from '@/lib/server/auth/credential-vault';
+import { serverProviderBaseUrlOverride } from '@/lib/server/auth/provider-endpoint';
 import { resolveTeacherSessionRequest } from '@/lib/server/auth/session';
 import { ProviderSetupError } from '@/lib/server/provider-setup-error';
 
@@ -213,9 +214,11 @@ export async function resolveSignedInTeacherModel(
 ): Promise<ResolvedModel> {
   const credential = await resolveTeacherProviderCredential(userId);
   if (credential) {
+    const baseUrl = serverProviderBaseUrlOverride(credential.providerId);
     return resolveModel({
       modelString: `${credential.providerId}:${credential.modelId}`,
       apiKey: credential.apiKey,
+      ...(baseUrl ? { baseUrl } : {}),
       callerKeyAuthoritative: true,
       thinkingConfig,
     });
