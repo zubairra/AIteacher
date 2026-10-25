@@ -12,8 +12,11 @@ service cloud.firestore {
       allow delete: if false;
 
       match /lessons/{lessonId} {
-        allow read, create, update, delete: if signedInAs(uid)
-          && (request.method == 'delete' || request.resource.data.ownerUid == uid);
+        // `request.resource` exists only on writes. Using it in a read rule
+        // denies the owner's own get/list.
+        allow read: if signedInAs(uid);
+        allow create, update: if signedInAs(uid) && request.resource.data.ownerUid == uid;
+        allow delete: if signedInAs(uid) && resource.data.ownerUid == uid;
         match /scenes/{sceneId} {
           allow read, write: if signedInAs(uid);
         }

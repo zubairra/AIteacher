@@ -93,6 +93,17 @@ export async function saveTeacherProviderCredential(input: {
   await batch.commit();
 }
 
+export async function setTeacherProviderVerificationStatus(
+  userId: string,
+  providerId: string,
+  verificationStatus: CredentialVerificationStatus,
+): Promise<void> {
+  if (!isTeacherProviderId(providerId)) throw new Error('Unsupported provider');
+  const ref = credentialCollection(userId).doc(providerId);
+  if (!(await ref.get()).exists) throw new Error('Provider is not configured');
+  await ref.set({ verificationStatus, updatedAt: Date.now() }, { merge: true });
+}
+
 export async function removeTeacherProviderCredential(userId: string, providerId: string) {
   const db = firebaseAdminDb();
   await db.runTransaction(async (transaction) => {

@@ -26,7 +26,12 @@ services:
     ports:
       - '3000:3000'
     env_file:
-      - .env.local
+      # Next.js reads both files for `pnpm dev`. Compose injects the same pair
+      # when the file exists. `.env.local` is listed second so it overrides `.env`.
+      - path: .env
+        required: false
+      - path: .env.local
+        required: false
     environment:
       # Point the app at the render service when it's running. This wins over any
       # RENDER_SERVICE_URL in .env.local; the service only starts under the
@@ -45,8 +50,9 @@ services:
     restart: unless-stopped
 
   # Optional PostgreSQL backing for the app-embedded persistence API.
-  # The app reads DATABASE_URL and PERSISTENCE_DEV_TOKEN from .env.local; keeping
-  # those values there avoids changing the default browser-only deployment.
+  # The app reads DATABASE_URL and PERSISTENCE_DEV_TOKEN from `.env` or
+  # `.env.local`. Leaving them unset keeps the default browser-only deployment.
+  # SmartBoard teacher lessons do not use this database.
   postgres:
     image: postgres:16
     profiles:

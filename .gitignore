@@ -73,7 +73,14 @@ next-env.d.ts
 /logs
 
 # docs
-/docs
+/docs/*
+!/docs/SETUP-FIREBASE.md
+
+# Firebase emulator browser auth captured by the local cloud test
+e2e/.auth/
+firestore-debug.log
+firebase-debug.log
+ui-debug.log
 # Eval results
 eval/whiteboard-layout/results/
 eval/outline-language/results/
