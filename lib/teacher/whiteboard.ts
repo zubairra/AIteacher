@@ -46,7 +46,8 @@ export interface EncodedWhiteboardMark {
 export interface EncodedWhiteboardPage {
   readonly version: 1;
   readonly ownerUid: string;
-  readonly marks: readonly EncodedWhiteboardMark[];
+  /** JSON marks. One string so security rules can cap the document with `string.size()`. */
+  readonly payload: string;
 }
 
 export interface EncodedWhiteboardBoard {
@@ -187,17 +188,18 @@ export function markHits(mark: WhiteboardMark, point: AnnotationPoint, radius: n
 }
 
 export function encodePage(ownerUid: string, page: WhiteboardPage): EncodedWhiteboardPage {
+  const marks: EncodedWhiteboardMark[] = page.marks.map((mark) => ({
+    id: mark.id.slice(0, 80),
+    kind: mark.kind,
+    color: mark.color.slice(0, 32),
+    width: quantize(mark.width),
+    ...(mark.text ? { text: mark.text.slice(0, 200) } : {}),
+    points: mark.points.flatMap((point) => [quantize(point.x), quantize(point.y)]),
+  }));
   return {
     version: 1,
     ownerUid,
-    marks: page.marks.map((mark) => ({
-      id: mark.id.slice(0, 80),
-      kind: mark.kind,
-      color: mark.color.slice(0, 32),
-      width: quantize(mark.width),
-      ...(mark.text ? { text: mark.text.slice(0, 200) } : {}),
-      points: mark.points.flatMap((point) => [quantize(point.x), quantize(point.y)]),
-    })),
+    payload: JSON.stringify(marks),
   };
 }
 
@@ -246,9 +248,21 @@ export function decodeWhiteboard(
   };
 }
 
+function parseMarksPayload(payload: string): unknown {
+  try {
+    return JSON.parse(payload) as unknown;
+  } catch {
+    return [];
+  }
+}
+
 function decodeMarks(value: unknown): WhiteboardMark[] {
   if (!value || typeof value !== 'object') return [];
-  const marks = (value as { marks?: unknown }).marks;
+  const pageRecord = value as { marks?: unknown; payload?: unknown };
+  const marks =
+    typeof pageRecord.payload === 'string'
+      ? parseMarksPayload(pageRecord.payload)
+      : pageRecord.marks;
   if (!Array.isArray(marks)) return [];
   const decoded: WhiteboardMark[] = [];
   for (const mark of marks) {

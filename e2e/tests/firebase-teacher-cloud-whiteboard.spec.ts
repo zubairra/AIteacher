@@ -35,7 +35,7 @@ test('lesson whiteboard toggle keeps the lesson and the drawing', async ({ page 
   await page.getByRole('link', { name: 'Whiteboard' }).first().click();
   await expect(page.getByTestId('teacher-whiteboard')).toBeVisible();
   await drawStroke(page);
-  await expect(page.getByTestId('teacher-whiteboard').getByRole('status')).toHaveText('Saved', {
+  await expect(page.getByTestId('whiteboard-save-status')).toHaveText('Saved', {
     timeout: 15_000,
   });
   const standaloneInk = await inkCount(page);
@@ -61,7 +61,7 @@ test('lesson whiteboard toggle keeps the lesson and the drawing', async ({ page 
   await page.getByRole('button', { name: 'Whiteboard' }).click();
   await expect(page.getByTestId('teacher-whiteboard')).toBeVisible();
   await drawStroke(page);
-  await expect(page.getByTestId('teacher-whiteboard').getByRole('status')).toHaveText('Saved', {
+  await expect(page.getByTestId('whiteboard-save-status')).toHaveText('Saved', {
     timeout: 15_000,
   });
   const lessonInk = await inkCount(page);

@@ -26,14 +26,21 @@ service cloud.firestore {
         allow read: if signedInAs(uid);
         allow create, update: if signedInAs(uid)
           && request.resource.data.ownerUid == uid
-          && request.resource.size() < 900000;
+          && request.resource.data.keys().hasOnly(['version', 'ownerUid', 'lessonId', 'pageOrder', 'activePageId', 'updatedAt'])
+          && request.resource.data.pageOrder is list
+          && request.resource.data.pageOrder.size() > 0
+          && request.resource.data.pageOrder.size() <= 100;
         allow delete: if signedInAs(uid) && resource.data.ownerUid == uid;
 
         match /pages/{pageId} {
           allow read: if signedInAs(uid);
+          // Strokes are one JSON string. string.size() is the cap rules can
+          // actually enforce; request.resource.size() allowed a ~950 KB field.
           allow create, update: if signedInAs(uid)
             && request.resource.data.ownerUid == uid
-            && request.resource.size() < 900000;
+            && request.resource.data.keys().hasOnly(['version', 'ownerUid', 'payload'])
+            && request.resource.data.payload is string
+            && request.resource.data.payload.size() < 800000;
           allow delete: if signedInAs(uid) && resource.data.ownerUid == uid;
         }
       }

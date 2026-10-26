@@ -503,7 +503,11 @@ export function TeacherWhiteboard({
         >
           New page
         </button>
-        <p className="ml-auto px-2 text-sm font-medium text-slate-500" role="status">
+        <p
+          className="ml-auto px-2 text-sm font-medium text-slate-500"
+          role="status"
+          data-testid="whiteboard-save-status"
+        >
           {status}
         </p>
       </nav>

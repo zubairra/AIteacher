@@ -99,8 +99,17 @@ describeRules('Firestore rules on the emulator', () => {
     const teacherA = authed('teacher-a');
     const board = doc(teacherA, 'users/teacher-a/whiteboards/standalone');
     const page = doc(teacherA, 'users/teacher-a/whiteboards/standalone/pages/page-1');
-    await assertSucceeds(setDoc(board, { ownerUid: 'teacher-a', version: 1, lessonId: null }));
-    await assertSucceeds(setDoc(page, { ownerUid: 'teacher-a', version: 1, marks: [] }));
+    await assertSucceeds(
+      setDoc(board, {
+        version: 1,
+        ownerUid: 'teacher-a',
+        lessonId: null,
+        pageOrder: ['page-1'],
+        activePageId: 'page-1',
+        updatedAt: 1,
+      }),
+    );
+    await assertSucceeds(setDoc(page, { version: 1, ownerUid: 'teacher-a', payload: '[]' }));
     await assertSucceeds(getDoc(page));
 
     const teacherB = authed('teacher-b');
@@ -120,7 +129,16 @@ describeRules('Firestore rules on the emulator', () => {
     );
     await assertFails(
       setDoc(doc(teacherA, 'users/teacher-a/whiteboards/standalone/pages/too-big'), {
+        version: 1,
         ownerUid: 'teacher-a',
+        payload: 'x'.repeat(800_000),
+      }),
+    );
+    await assertFails(
+      setDoc(doc(teacherA, 'users/teacher-a/whiteboards/standalone/pages/extra'), {
+        version: 1,
+        ownerUid: 'teacher-a',
+        payload: '[]',
         blob: 'x'.repeat(950_000),
       }),
     );
