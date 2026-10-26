@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowRight, BookOpen, Clock3, Loader2, Plus } from 'lucide-react';
+import { ArrowRight, BookOpen, Clock3, Loader2, Plus, Presentation } from 'lucide-react';
 import { listStages, type StageListItem } from '@/lib/utils/stage-storage';
 import { toTeacherLessonListItem, type TeacherLessonListItem } from '@/lib/teacher/lesson-list';
 import { Button } from '@/components/ui/button';
@@ -99,12 +99,25 @@ export function TeacherDashboard({ showAll = false }: { showAll?: boolean }) {
               : 'Create clear, classroom-ready teaching materials while you stay in control of the lesson.'}
           </p>
         </div>
-        <Button asChild size="lg" className="min-h-12 shrink-0 rounded-xl px-6 text-base">
-          <Link href="/lessons/new">
-            <Plus className="size-5" aria-hidden="true" />
-            Create Lesson
-          </Link>
-        </Button>
+        <div className="flex shrink-0 flex-col gap-3 sm:flex-row">
+          <Button
+            asChild
+            size="lg"
+            variant="outline"
+            className="min-h-12 rounded-xl px-6 text-base"
+          >
+            <Link href="/whiteboard">
+              <Presentation className="size-5" aria-hidden="true" />
+              Whiteboard
+            </Link>
+          </Button>
+          <Button asChild size="lg" className="min-h-12 rounded-xl px-6 text-base">
+            <Link href="/lessons/new">
+              <Plus className="size-5" aria-hidden="true" />
+              Create Lesson
+            </Link>
+          </Button>
+        </div>
       </section>
 
       <section className="mt-10" aria-labelledby="lessons-heading">

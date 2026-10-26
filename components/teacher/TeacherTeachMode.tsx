@@ -11,6 +11,7 @@ import {
   Minimize2,
   NotebookPen,
   Pencil,
+  Presentation,
   Redo2,
   Trash2,
   Undo2,
@@ -36,6 +37,7 @@ import { TeacherNotesContent } from '@/components/teacher/TeacherNotesPanel';
 import { toggleTeacherFullscreen } from '@/lib/teacher/fullscreen';
 import { parseNativeActivity } from '@/lib/teacher/native-activities';
 import { NativeActivitySurface } from '@/components/teacher/activities/NativeActivitySurface';
+import { TeacherWhiteboard } from '@/components/teacher/TeacherWhiteboard';
 
 export function TeacherTeachMode() {
   const router = useRouter();
@@ -50,6 +52,8 @@ export function TeacherTeachMode() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [fullscreenNotice, setFullscreenNotice] = useState<string | null>(null);
   const [activityOpen, setActivityOpen] = useState(false);
+  const [whiteboardOpen, setWhiteboardOpen] = useState(false);
+  const [whiteboardMounted, setWhiteboardMounted] = useState(false);
   const metadata = parseTeacherLessonMetadata(stage?.teacherLesson);
   const navigation = useMemo(
     () => getTeacherNavigationState(scenes, currentSceneId),
@@ -115,6 +119,7 @@ export function TeacherTeachMode() {
       ) {
         return;
       }
+      if (whiteboardOpen) return;
       if (event.key === 'ArrowLeft' && navigation.previousSceneId) {
         event.preventDefault();
         previous();
@@ -125,7 +130,7 @@ export function TeacherTeachMode() {
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [navigation.nextSceneId, navigation.previousSceneId, next, previous]);
+  }, [navigation.nextSceneId, navigation.previousSceneId, next, previous, whiteboardOpen]);
 
   if (!stage || !metadata) {
     return (
@@ -212,6 +217,17 @@ export function TeacherTeachMode() {
         className="flex min-h-20 shrink-0 items-center justify-between gap-3 border-t border-white/10 bg-slate-900 px-3 py-2 sm:px-5"
         aria-label="Lesson navigation"
       >
+        <button
+          type="button"
+          onClick={() => {
+            setWhiteboardMounted(true);
+            setWhiteboardOpen(true);
+          }}
+          className="flex min-h-14 items-center justify-center gap-2 rounded-xl bg-amber-300 px-4 text-base font-bold text-slate-950 hover:bg-amber-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+        >
+          <Presentation className="size-6" aria-hidden="true" />
+          Whiteboard
+        </button>
         <button
           type="button"
           onClick={() => setActivityOpen(true)}
@@ -342,6 +358,16 @@ export function TeacherTeachMode() {
       ) : null}
       {activityOpen && nativeActivity ? (
         <NativeActivitySurface definition={nativeActivity} onClose={() => setActivityOpen(false)} />
+      ) : null}
+      {whiteboardMounted ? (
+        <div className={whiteboardOpen ? 'contents' : 'hidden'}>
+          <TeacherWhiteboard
+            key={stage.id}
+            boardId={stage.id}
+            lessonId={stage.id}
+            onClose={() => setWhiteboardOpen(false)}
+          />
+        </div>
       ) : null}
       <InteractiveIframeHost />
     </main>

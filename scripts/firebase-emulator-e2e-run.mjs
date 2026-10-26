@@ -124,6 +124,7 @@ try {
       '--config',
       'playwright.firebase.config.ts',
       'e2e/tests/firebase-teacher-cloud.spec.ts',
+      'e2e/tests/firebase-teacher-cloud-whiteboard.spec.ts',
     ],
     env,
   );

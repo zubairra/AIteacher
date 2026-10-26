@@ -95,6 +95,39 @@ describeRules('Firestore rules on the emulator', () => {
     );
   });
 
+  test('a teacher can save and read only their own whiteboard pages', async () => {
+    const teacherA = authed('teacher-a');
+    const board = doc(teacherA, 'users/teacher-a/whiteboards/standalone');
+    const page = doc(teacherA, 'users/teacher-a/whiteboards/standalone/pages/page-1');
+    await assertSucceeds(setDoc(board, { ownerUid: 'teacher-a', version: 1, lessonId: null }));
+    await assertSucceeds(setDoc(page, { ownerUid: 'teacher-a', version: 1, marks: [] }));
+    await assertSucceeds(getDoc(page));
+
+    const teacherB = authed('teacher-b');
+    await assertFails(getDoc(doc(teacherB, 'users/teacher-a/whiteboards/standalone')));
+    await assertFails(getDoc(doc(teacherB, 'users/teacher-a/whiteboards/standalone/pages/page-1')));
+    await assertFails(
+      setDoc(doc(teacherB, 'users/teacher-b/whiteboards/stolen'), {
+        ownerUid: 'teacher-a',
+        version: 1,
+      }),
+    );
+    await assertFails(
+      setDoc(doc(teacherB, 'users/teacher-a/whiteboards/standalone/pages/page-1'), {
+        ownerUid: 'teacher-a',
+        version: 2,
+      }),
+    );
+    await assertFails(
+      setDoc(doc(teacherA, 'users/teacher-a/whiteboards/standalone/pages/too-big'), {
+        ownerUid: 'teacher-a',
+        blob: 'x'.repeat(950_000),
+      }),
+    );
+    const guest = testEnv.unauthenticatedContext().firestore();
+    await assertFails(getDoc(doc(guest, 'users/teacher-a/whiteboards/standalone/pages/page-1')));
+  });
+
   test('anonymous clients cannot read a lesson', async () => {
     await testEnv.withSecurityRulesDisabled(async (context) => {
       await setDoc(doc(context.firestore(), 'users/teacher-a/lessons/factorisation'), {

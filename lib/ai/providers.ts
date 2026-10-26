@@ -2400,9 +2400,15 @@ export function getModel(config: ModelConfig): ModelWithInfo {
           const thinkingFromContext = thinkingCtx?.getStore?.() as ThinkingConfig | undefined;
           const thinking =
             thinkingFromContext ??
-            (providerId === 'lemonade'
-              ? getDefaultThinkingConfig(getCatalogThinkingCapability(providerId, config.modelId))
-              : undefined);
+            (providerId === 'qwen'
+              ? // Qwen3 thinks unless asked not to, and the thinking trace can
+                // replace the lesson content. Default off so a saved DashScope
+                // key returns the generated lesson. An explicit thinking
+                // context still wins.
+                ({ mode: 'disabled' } as ThinkingConfig)
+              : providerId === 'lemonade'
+                ? getDefaultThinkingConfig(getCatalogThinkingCapability(providerId, config.modelId))
+                : undefined);
           if (thinking && init?.body && typeof init.body === 'string') {
             const extra = getCompatThinkingBodyParams(providerId, config.modelId, thinking);
             if (extra) {
