@@ -1020,6 +1020,17 @@ describe('Grok streaming compatibility (OPENAI_COMPAT_USE_STREAMING_CHAT)', () =
     },
   );
 
+  it('turns Qwen thinking off when the caller did not ask for it', async () => {
+    const body = await captureInjectedRequestBody(
+      'qwen',
+      'qwen3.7-plus',
+      undefined,
+      'https://dashscope.aliyuncs.com/compatible-mode/v1',
+    );
+    expect(body.enable_thinking).toBe(false);
+    expect(JSON.stringify(body)).not.toContain('sk-test');
+  });
+
   it('leaves a relay on the plain transport while the flag is off', async () => {
     vi.stubEnv('OPENAI_COMPAT_USE_STREAMING_CHAT', 'false');
 

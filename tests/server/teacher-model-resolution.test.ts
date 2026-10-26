@@ -67,6 +67,26 @@ describe('signed-in teacher model resolution', () => {
     expect(mocks.getModelCalls[0]?.apiKey).not.toBe(OWNER_KEY);
   });
 
+  it('sends a saved Qwen key to the DashScope compatible-mode host', async () => {
+    mocks.credential = {
+      providerId: 'qwen',
+      modelId: 'qwen3.7-plus',
+      apiKey: 'sk-fake-qwen-test-A92F',
+    };
+    const { resolveSignedInTeacherModel } = await import('@/lib/server/resolve-model');
+    const resolved = await resolveSignedInTeacherModel('teacher-1');
+    expect(resolved.providerId).toBe('qwen');
+    expect(resolved.baseUrl).toBe('https://dashscope.aliyuncs.com/compatible-mode/v1');
+    expect(mocks.getModelCalls[0]).toMatchObject({
+      providerId: 'qwen',
+      modelId: 'qwen3.7-plus',
+      apiKey: 'sk-fake-qwen-test-A92F',
+      baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+    });
+    expect(JSON.stringify(mocks.getModelCalls[0])).toContain('sk-fake-qwen-test-A92F');
+    expect(resolved.modelString).not.toContain('sk-');
+  });
+
   it('sends a saved Qwen key to an operator DashScope override', async () => {
     process.env.DASHSCOPE_BASE_URL = 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1';
     mocks.credential = {
