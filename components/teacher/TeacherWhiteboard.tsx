@@ -127,7 +127,8 @@ export function TeacherWhiteboard({
   }, []);
 
   const scheduleDraw = useCallback(() => {
-    if (!frameRef.current) frameRef.current = requestAnimationFrame(draw);
+    if (frameRef.current) return;
+    frameRef.current = requestAnimationFrame(draw);
   }, [draw]);
 
   useEffect(() => {
@@ -139,6 +140,9 @@ export function TeacherWhiteboard({
     return () => {
       observer.disconnect();
       if (frameRef.current) cancelAnimationFrame(frameRef.current);
+      // Strict mode cancels this frame before paint. Clearing the id lets the
+      // remounted effect schedule a new one; otherwise the board never draws.
+      frameRef.current = 0;
     };
   }, [scheduleDraw]);
 
