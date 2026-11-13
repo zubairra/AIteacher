@@ -21,6 +21,8 @@ describe('Firestore ownership boundaries', () => {
       /match \/providerCredentials\/\{providerId\}[\s\S]*?allow read, write: if false;/,
     );
     expect(rules).toMatch(/match \/settings\/\{settingId\}[\s\S]*?allow read, write: if false;/);
+    expect(rules).toContain('match /whiteboards/{boardId}');
+    expect(rules).toContain('request.resource.data.payload.size() < 800000');
     expect(rules).toContain('allow read, write: if false;');
   });
 });
