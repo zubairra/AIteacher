@@ -45,6 +45,16 @@ service cloud.firestore {
         }
       }
 
+      match /billing/{docId} {
+        // Trial and subscription state. The server writes it. The teacher may read it.
+        allow read: if signedInAs(uid);
+        allow write: if false;
+      }
+
+      match /billingEvents/{eventId} {
+        allow read, write: if false;
+      }
+
       match /settings/{settingId} {
         // Provider preferences are managed by trusted server routes together
         // with credential state; clients do not write these documents.
@@ -56,6 +66,10 @@ service cloud.firestore {
         // denied even to the owning user.
         allow read, write: if false;
       }
+    }
+
+    match /billingIndex/{subscriptionId} {
+      allow read, write: if false;
     }
 
     match /{document=**} {

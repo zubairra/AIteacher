@@ -8,6 +8,9 @@ const probeTeacherProvider = vi.fn();
 
 vi.mock('@/lib/server/auth/session', () => ({ resolveTeacherSessionRequest }));
 vi.mock('@/lib/server/auth/request-security', () => ({ isSameOriginMutation: () => true }));
+vi.mock('@/lib/server/auth/generation-access', () => ({
+  teacherSubscriptionGate: async () => null,
+}));
 vi.mock('@/lib/server/auth/credential-vault', () => ({
   isTeacherProviderId: (value: string) => value === 'qwen',
   resolveTeacherProviderCredential,

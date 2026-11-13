@@ -33,6 +33,9 @@ The browser signs in with the Firebase Web SDK and Google provider. It sends the
 - `users/{uid}/lessons/{lessonId}/scenes/{sceneId}`: one Scene per document, avoiding a single oversized lesson document.
 - `users/{uid}/settings/ai`: selected provider and model; server-only.
 - `users/{uid}/providerCredentials/{providerId}`: AES-256-GCM ciphertext and encryption metadata; server-only.
+- `users/{uid}/billing/subscription`: trial window and Razorpay subscription status. The browser may read it. Only the server may write it. Webhooks are the source of truth for paid status.
+- `users/{uid}/billingEvents/{eventId}`: processed Razorpay event ids. Server-only.
+- `billingIndex/{subscriptionId}`: subscription id to teacher uid, so a webhook can find the teacher. Server-only.
 
 Binary assets are not embedded in Firestore. Existing OpenMAIC asset URLs/storage continue unchanged. Presentation annotations, scores, streaks, lifelines, fullscreen state, and activity runtime state remain ephemeral.
 
@@ -62,7 +65,7 @@ Credential writes and reads use Firebase Admin only. The existing AES-256-GCM im
 
 ## Environment variables
 
-Public Firebase Web App configuration:
+Public Firebase Web App configuration, plus the Razorpay Checkout key id:
 
 - `NEXT_PUBLIC_FIREBASE_API_KEY`
 - `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`
@@ -71,6 +74,7 @@ Public Firebase Web App configuration:
 - `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`
 - `NEXT_PUBLIC_FIREBASE_APP_ID`
 - `NEXT_PUBLIC_FIREBASE_USE_EMULATORS` (optional local tests)
+- `NEXT_PUBLIC_RAZORPAY_KEY_ID` (same value as `RAZORPAY_KEY_ID`)
 
 Server-only configuration:
 
@@ -78,6 +82,10 @@ Server-only configuration:
 - `FIREBASE_CLIENT_EMAIL`
 - `FIREBASE_PRIVATE_KEY`
 - `APP_CREDENTIAL_ENCRYPTION_KEY`
+- `RAZORPAY_KEY_ID`
+- `RAZORPAY_KEY_SECRET`
+- `RAZORPAY_WEBHOOK_SECRET`
+- `RAZORPAY_PLAN_ID`
 - `FIREBASE_AUTH_EMULATOR_HOST` (tests only)
 - `FIRESTORE_EMULATOR_HOST` (tests only)
 
@@ -87,7 +95,7 @@ Local `pnpm dev` can use the cloud project and Google Sign-In. For deterministic
 
 ## Security rules
 
-`firestore.rules` permits a Firebase-authenticated browser to read/write only its own profile and lesson/scenes paths. AI settings and credential documents are denied to all browser clients and are accessible only through Firebase Admin, which bypasses rules in trusted server code. All other paths default to deny.
+`firestore.rules` permits a Firebase-authenticated browser to read/write only its own profile and lesson/scenes paths, and to read its own billing status. Clients cannot write billing, billing events, AI settings, or credential documents. Those writes use Firebase Admin, which bypasses rules. All other paths default to deny.
 
 ## Limitations
 

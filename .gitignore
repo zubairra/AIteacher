@@ -75,6 +75,7 @@ next-env.d.ts
 # docs
 /docs/*
 !/docs/SETUP-FIREBASE.md
+!/docs/SETUP-RAZORPAY.md
 
 # Firebase emulator browser auth captured by the local cloud test
 e2e/.auth/

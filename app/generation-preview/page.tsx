@@ -20,6 +20,7 @@ import { isQwenCloneVoice, resolveTTSModelForVoice } from '@/lib/audio/constants
 import { isTTSProviderEnabled } from '@/lib/audio/provider-enablement';
 import { useAllVoiceProfiles } from '@/lib/audio/voxcpm-voices';
 import { useI18n } from '@/lib/hooks/use-i18n';
+import { SUBSCRIPTION_REQUIRED_MESSAGE } from '@/lib/teacher/billing';
 import {
   fetchSceneActions,
   fetchSceneContent,
@@ -589,6 +590,10 @@ function GenerationPreviewContent() {
             signal,
           })
             .then((res) => {
+              if (res.status === 402) {
+                reject(new Error(SUBSCRIPTION_REQUIRED_MESSAGE));
+                return;
+              }
               if (!res.ok) {
                 return res.json().then((d) => {
                   reject(new Error(d.error || t('generation.outlineGenerateFailed')));
@@ -1073,6 +1078,10 @@ function GenerationPreviewContent() {
         return;
       }
       sessionStorage.removeItem('generationSession');
+      if (err instanceof Error && err.message === SUBSCRIPTION_REQUIRED_MESSAGE) {
+        router.push('/billing');
+        return;
+      }
       setError(err instanceof Error ? err.message : String(err));
     }
   };

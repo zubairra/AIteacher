@@ -155,6 +155,41 @@ describeRules('Firestore rules on the emulator', () => {
     const guest = testEnv.unauthenticatedContext().firestore();
     await assertFails(getDoc(doc(guest, 'users/teacher-a/lessons/factorisation')));
   });
+
+  test('a teacher can read their billing status and cannot write it', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      const db = context.firestore();
+      await setDoc(doc(db, 'users/teacher-a/billing/subscription'), {
+        ownerUid: 'teacher-a',
+        status: 'none',
+        trialEndsAt: 1,
+      });
+      await setDoc(doc(db, 'users/teacher-a/billingEvents/evt-1'), {
+        name: 'subscription.activated',
+      });
+      await setDoc(doc(db, 'billingIndex/sub_test'), { uid: 'teacher-a' });
+    });
+    const teacherA = authed('teacher-a');
+    await assertSucceeds(getDoc(doc(teacherA, 'users/teacher-a/billing/subscription')));
+    await assertFails(
+      setDoc(doc(teacherA, 'users/teacher-a/billing/subscription'), {
+        ownerUid: 'teacher-a',
+        status: 'active',
+      }),
+    );
+    await assertFails(getDoc(doc(teacherA, 'users/teacher-a/billingEvents/evt-1')));
+    await assertFails(getDoc(doc(teacherA, 'billingIndex/sub_test')));
+    const teacherB = authed('teacher-b');
+    await assertFails(getDoc(doc(teacherB, 'users/teacher-a/billing/subscription')));
+    await assertFails(
+      setDoc(doc(teacherB, 'users/teacher-b/billing/subscription'), {
+        ownerUid: 'teacher-b',
+        status: 'active',
+      }),
+    );
+    const guest = testEnv.unauthenticatedContext().firestore();
+    await assertFails(getDoc(doc(guest, 'users/teacher-a/billing/subscription')));
+  });
 });
 
 if (!emulatorHost) {

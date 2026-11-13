@@ -2,7 +2,15 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { BookOpen, LayoutDashboard, Library, Plus, Presentation, Settings } from 'lucide-react';
+import {
+  BookOpen,
+  CreditCard,
+  LayoutDashboard,
+  Library,
+  Plus,
+  Presentation,
+  Settings,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { SignOutButton } from './SignOutButton';
 
@@ -11,6 +19,7 @@ const navItems = [
   { href: '/lessons/new', label: 'Create Lesson', icon: Plus },
   { href: '/lessons', label: 'Saved Lessons', icon: Library },
   { href: '/whiteboard', label: 'Whiteboard', icon: Presentation },
+  { href: '/billing', label: 'Billing', icon: CreditCard },
   { href: '/settings', label: 'Settings', icon: Settings },
 ] as const;
 
