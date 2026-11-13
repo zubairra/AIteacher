@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 
+import { claimSchoolInvite, ensureTeacherTrial } from '@/lib/server/billing/store';
 import { firebaseAdminAuth, firebaseAdminDb } from '@/lib/server/firebase/admin';
 
 export const TEACHER_SESSION_COOKIE = 'smartboard_firebase_session';
@@ -53,17 +54,20 @@ export async function createTeacherSession(idToken: string) {
   const user = userFromClaims(decoded);
   const profile = firebaseAdminDb().doc(`users/${decoded.uid}`);
   const existing = await profile.get();
+  const createdAt = existing.exists ? (existing.data()?.createdAt ?? Date.now()) : Date.now();
   await profile.set(
     {
       version: 1,
       displayName: user.name,
       email: user.email,
       photoURL: user.photoURL ?? null,
-      createdAt: existing.exists ? (existing.data()?.createdAt ?? Date.now()) : Date.now(),
+      createdAt,
       updatedAt: Date.now(),
     },
     { merge: true },
   );
+  await ensureTeacherTrial(decoded.uid, typeof createdAt === 'number' ? createdAt : Date.now());
+  if (user.email) await claimSchoolInvite(decoded.uid, user.email);
   return { token, user };
 }
 

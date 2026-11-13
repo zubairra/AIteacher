@@ -41,6 +41,12 @@ Do not set `FIREBASE_AUTH_EMULATOR_HOST` or `FIRESTORE_EMULATOR_HOST` for real s
 
 `DATABASE_URL` is not used for teacher sign-in or teacher lessons. Leave it unset unless you are running the separate OpenMAIC workbench.
 
+## Teacher subscription (India)
+
+A 15-day free trial starts at the teacher's first Google sign-in, with 5 chalks each week. One chalk makes one new AI lesson. Pro and Max are billed monthly and School yearly, but included chalks refill every 7 days and do not roll over. Top-up chalks stay until they are used. The steps to create the test-mode keys, the three plans, and the webhook, and the KYC required before live mode, are in [SETUP-RAZORPAY.md](./SETUP-RAZORPAY.md).
+
+Add `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET`, `RAZORPAY_PLAN_ID`, and `NEXT_PUBLIC_RAZORPAY_KEY_ID` to the same `.env` file. The key secret and the webhook secret stay on the server.
+
 ## Create the Firebase Admin service account
 
 1. Open the [Firebase console](https://console.firebase.google.com/) and select **smartboard-ai**.

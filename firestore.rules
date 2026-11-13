@@ -45,6 +45,16 @@ service cloud.firestore {
         }
       }
 
+      match /billing/{docId} {
+        // Trial and subscription state. The server writes it. The teacher may read it.
+        allow read: if signedInAs(uid);
+        allow write: if false;
+      }
+
+      match /billingEvents/{eventId} {
+        allow read, write: if false;
+      }
+
       match /settings/{settingId} {
         // Provider preferences are managed by trusted server routes together
         // with credential state; clients do not write these documents.
@@ -56,6 +66,37 @@ service cloud.firestore {
         // denied even to the owning user.
         allow read, write: if false;
       }
+    }
+
+    match /billingIndex/{subscriptionId} {
+      allow read, write: if false;
+    }
+
+    function schoolAdmin(schoolId) {
+      return request.auth != null
+        && get(/databases/$(database)/documents/schools/$(schoolId)).data.adminUid == request.auth.uid;
+    }
+
+    match /schools/{schoolId} {
+      allow read: if schoolAdmin(schoolId)
+        || (request.auth != null
+          && exists(/databases/$(database)/documents/schools/$(schoolId)/members/$(request.auth.uid)));
+      allow write: if false;
+
+      match /members/{memberId} {
+        allow read: if schoolAdmin(schoolId)
+          || (request.auth != null && request.auth.uid == memberId);
+        allow write: if false;
+      }
+
+      match /invites/{inviteId} {
+        allow read: if schoolAdmin(schoolId);
+        allow write: if false;
+      }
+    }
+
+    match /schoolInvites/{inviteId} {
+      allow read, write: if false;
     }
 
     match /{document=**} {

@@ -9,6 +9,7 @@ import {
 } from '@/lib/server/auth/credential-vault';
 import { probeTeacherProvider } from '@/lib/server/auth/provider-probe';
 import { isSameOriginMutation } from '@/lib/server/auth/request-security';
+import { teacherSubscriptionGate } from '@/lib/server/auth/generation-access';
 import { resolveTeacherSessionRequest } from '@/lib/server/auth/session';
 import { maskCredentialSuffix } from '@/lib/server/auth/credential-crypto';
 
@@ -25,6 +26,8 @@ export async function POST(request: Request) {
     return Response.json({ error: 'Invalid origin' }, { status: 403 });
   const user = await resolveTeacherSessionRequest(request);
   if (!user) return Response.json({ error: 'Authentication required' }, { status: 401 });
+  const blocked = await teacherSubscriptionGate(user.id);
+  if (blocked) return blocked;
 
   const parsed = schema.safeParse(await request.json().catch(() => null));
   if (!parsed.success || !isTeacherProviderId(parsed.data.providerId)) {
