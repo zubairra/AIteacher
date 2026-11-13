@@ -1,7 +1,8 @@
 import Razorpay from 'razorpay';
 
 import {
-  TEACHER_PLAN,
+  CHALK_PLANS,
+  planIdEnv,
   subscriptionStartAtUnix,
   type TeacherBillingRecord,
 } from '@/lib/teacher/billing';
@@ -20,8 +21,8 @@ export function razorpayKeySecret(): string | null {
   return process.env.RAZORPAY_KEY_SECRET?.trim() || null;
 }
 
-export function razorpayPlanId(): string | null {
-  return process.env.RAZORPAY_PLAN_ID?.trim() || null;
+export function razorpayPlanId(plan: 'pro' | 'max' | 'school' = 'pro'): string | null {
+  return planIdEnv(plan);
 }
 
 export function razorpayWebhookSecret(): string | null {
@@ -33,37 +34,64 @@ export function razorpayCheckoutKeyId(): string | null {
   return process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID?.trim() || razorpayKeyId();
 }
 
-export function razorpaySubscriptions(): {
-  create(body: Record<string, unknown>): Promise<{ id: string }>;
-  cancel(subscriptionId: string, cancelAtCycleEnd?: boolean): Promise<unknown>;
+export function razorpayClient(): {
+  subscriptions: {
+    create(body: Record<string, unknown>): Promise<{ id: string }>;
+    cancel(subscriptionId: string, cancelAtCycleEnd?: boolean): Promise<unknown>;
+  };
+  orders: {
+    create(body: Record<string, unknown>): Promise<{ id: string }>;
+  };
 } | null {
   const keyId = razorpayKeyId();
   const keySecret = razorpayKeySecret();
   if (!keyId || !keySecret) return null;
   const client = new Razorpay({ key_id: keyId, key_secret: keySecret });
-  return client.subscriptions as unknown as {
-    create(body: Record<string, unknown>): Promise<{ id: string }>;
-    cancel(subscriptionId: string, cancelAtCycleEnd?: boolean): Promise<unknown>;
+  return client as unknown as {
+    subscriptions: {
+      create(body: Record<string, unknown>): Promise<{ id: string }>;
+      cancel(subscriptionId: string, cancelAtCycleEnd?: boolean): Promise<unknown>;
+    };
+    orders: {
+      create(body: Record<string, unknown>): Promise<{ id: string }>;
+    };
   };
+}
+
+export function razorpaySubscriptions() {
+  return razorpayClient()?.subscriptions ?? null;
 }
 
 export function subscriptionCreateBody(
   uid: string,
+  plan: 'pro' | 'max' | 'school',
   planId: string,
   record: TeacherBillingRecord,
   now: number,
+  seats = 1,
 ): { body: Record<string, unknown>; startAt: number | null } {
-  const startAt = subscriptionStartAtUnix(record.trialEndsAt, now);
+  const config =
+    plan === 'school' ? CHALK_PLANS.school : plan === 'max' ? CHALK_PLANS.max : CHALK_PLANS.pro;
+  const startAt = plan === 'school' ? null : subscriptionStartAtUnix(record.trialEndsAt, now);
   return {
     startAt,
     body: {
       plan_id: planId,
-      total_count: TEACHER_PLAN.cycleCount,
-      quantity: 1,
+      total_count: config.cycleCount,
+      quantity: plan === 'school' ? seats : 1,
       customer_notify: 1,
-      notes: { uid, product: 'smartboard-teacher' },
+      notes: { uid, plan, product: 'smartboard-teacher' },
       ...(startAt ? { start_at: startAt } : {}),
     },
+  };
+}
+
+export function topUpOrderBody(uid: string): Record<string, unknown> {
+  return {
+    amount: CHALK_PLANS.topUp.pricePaise,
+    currency: CHALK_PLANS.currency,
+    receipt: `chalks_${uid.slice(0, 12)}_${Date.now()}`,
+    notes: { uid, kind: 'chalk-topup', chalks: String(CHALK_PLANS.topUp.chalks) },
   };
 }
 

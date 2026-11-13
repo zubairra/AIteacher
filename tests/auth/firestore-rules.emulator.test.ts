@@ -190,6 +190,39 @@ describeRules('Firestore rules on the emulator', () => {
     const guest = testEnv.unauthenticatedContext().firestore();
     await assertFails(getDoc(doc(guest, 'users/teacher-a/billing/subscription')));
   });
+
+  test('a school admin can read usage and a teacher can read only their seat', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      const db = context.firestore();
+      await setDoc(doc(db, 'schools/demo'), {
+        adminUid: 'teacher-a',
+        poolChalks: 170,
+        seatCount: 10,
+      });
+      await setDoc(doc(db, 'schools/demo/members/teacher-a'), {
+        role: 'admin',
+        chalksUsedThisPeriod: 0,
+      });
+      await setDoc(doc(db, 'schools/demo/members/teacher-b'), {
+        role: 'teacher',
+        chalksUsedThisPeriod: 2,
+      });
+      await setDoc(doc(db, 'schoolInvites/teacher_b'), { schoolId: 'demo' });
+    });
+    const admin = authed('teacher-a');
+    await assertSucceeds(getDoc(doc(admin, 'schools/demo')));
+    await assertSucceeds(getDoc(doc(admin, 'schools/demo/members/teacher-b')));
+    await assertFails(
+      setDoc(doc(admin, 'schools/demo'), { adminUid: 'teacher-a', poolChalks: 999 }),
+    );
+    const teacher = authed('teacher-b');
+    await assertSucceeds(getDoc(doc(teacher, 'schools/demo/members/teacher-b')));
+    await assertFails(getDoc(doc(teacher, 'schools/demo/members/teacher-a')));
+    await assertFails(getDoc(doc(teacher, 'schoolInvites/teacher_b')));
+    await assertFails(
+      setDoc(doc(teacher, 'schools/demo/members/teacher-b'), { chalksUsedThisPeriod: 0 }),
+    );
+  });
 });
 
 if (!emulatorHost) {

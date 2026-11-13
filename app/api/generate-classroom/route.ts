@@ -2,6 +2,7 @@ import { after, type NextRequest } from 'next/server';
 import { nanoid } from 'nanoid';
 import { apiError, apiSuccess } from '@/lib/server/api-response';
 import { requireTeacherGeneration } from '@/lib/server/auth/generation-access';
+import { settleLessonGeneration } from '@/lib/server/billing/lesson-chalk';
 import { type GenerateClassroomInput } from '@/lib/server/classroom-generation';
 import { runClassroomGenerationJob } from '@/lib/server/classroom-job-runner';
 import { createClassroomGenerationJob } from '@/lib/server/classroom-job-store';
@@ -28,7 +29,7 @@ function isValidPdfContent(value: unknown): value is PdfContent {
 }
 
 export async function POST(req: NextRequest) {
-  const denied = await requireTeacherGeneration(req);
+  const denied = await requireTeacherGeneration(req, { lesson: true });
   if (denied) return denied;
   let requirementSnippet: string | undefined;
   try {
@@ -73,7 +74,10 @@ export async function POST(req: NextRequest) {
     const job = await createClassroomGenerationJob(jobId, body);
     const pollUrl = `${baseUrl}/api/generate-classroom/${jobId}`;
 
-    after(() => runClassroomGenerationJob(jobId, body, baseUrl));
+    after(async () => {
+      const result = await runClassroomGenerationJob(jobId, body, baseUrl);
+      await settleLessonGeneration(req, result === 'succeeded');
+    });
 
     return apiSuccess(
       {

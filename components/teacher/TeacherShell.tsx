@@ -10,8 +10,10 @@ import {
   Plus,
   Presentation,
   Settings,
+  Users,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { ChalkIcon } from './ChalkIcon';
 import { SignOutButton } from './SignOutButton';
 
 const navItems = [
@@ -19,7 +21,8 @@ const navItems = [
   { href: '/lessons/new', label: 'Create Lesson', icon: Plus },
   { href: '/lessons', label: 'Saved Lessons', icon: Library },
   { href: '/whiteboard', label: 'Whiteboard', icon: Presentation },
-  { href: '/billing', label: 'Billing', icon: CreditCard },
+  { href: '/billing', label: 'Plans', icon: CreditCard },
+  { href: '/school', label: 'School', icon: Users },
   { href: '/settings', label: 'Settings', icon: Settings },
 ] as const;
 
@@ -28,11 +31,13 @@ export function TeacherShell({
   teacherName,
   teacherEmail,
   photoURL,
+  chalkLabel,
 }: {
   children: React.ReactNode;
   teacherName: string;
   teacherEmail: string;
   photoURL?: string;
+  chalkLabel?: string | null;
 }) {
   const pathname = usePathname();
 
@@ -78,6 +83,16 @@ export function TeacherShell({
           </nav>
 
           <div className="flex items-center gap-1">
+            {chalkLabel ? (
+              <Link
+                href="/billing"
+                data-testid="chalk-balance"
+                className="mr-1 inline-flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm font-semibold text-slate-800 hover:bg-slate-100"
+              >
+                <ChalkIcon className="size-4" />
+                {chalkLabel}
+              </Link>
+            ) : null}
             {photoURL ? (
               <img
                 src={photoURL}

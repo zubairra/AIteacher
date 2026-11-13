@@ -72,6 +72,33 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    function schoolAdmin(schoolId) {
+      return request.auth != null
+        && get(/databases/$(database)/documents/schools/$(schoolId)).data.adminUid == request.auth.uid;
+    }
+
+    match /schools/{schoolId} {
+      allow read: if schoolAdmin(schoolId)
+        || (request.auth != null
+          && exists(/databases/$(database)/documents/schools/$(schoolId)/members/$(request.auth.uid)));
+      allow write: if false;
+
+      match /members/{memberId} {
+        allow read: if schoolAdmin(schoolId)
+          || (request.auth != null && request.auth.uid == memberId);
+        allow write: if false;
+      }
+
+      match /invites/{inviteId} {
+        allow read: if schoolAdmin(schoolId);
+        allow write: if false;
+      }
+    }
+
+    match /schoolInvites/{inviteId} {
+      allow read, write: if false;
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

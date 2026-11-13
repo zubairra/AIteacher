@@ -1,7 +1,7 @@
 import Link from 'next/link';
-import { CreditCard } from 'lucide-react';
 
 import type { TeacherBillingView } from '@/lib/teacher/billing';
+import { ChalkIcon } from './ChalkIcon';
 
 export function TrialBanner({ view }: { view: TeacherBillingView }) {
   const tone =
@@ -24,8 +24,8 @@ export function TrialBanner({ view }: { view: TeacherBillingView }) {
         href="/billing"
         className="inline-flex min-h-12 shrink-0 items-center justify-center gap-2 rounded-xl bg-slate-950 px-5 text-base font-semibold text-white"
       >
-        <CreditCard className="size-4" aria-hidden="true" />
-        Billing
+        <ChalkIcon className="size-4" />
+        {view.chalksLabel}
       </Link>
     </div>
   );

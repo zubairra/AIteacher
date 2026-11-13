@@ -8,13 +8,13 @@ import {
 } from '@/lib/server/classroom-job-store';
 
 const log = createLogger('ClassroomJob');
-const runningJobs = new Map<string, Promise<void>>();
+const runningJobs = new Map<string, Promise<'succeeded' | 'failed'>>();
 
 export function runClassroomGenerationJob(
   jobId: string,
   input: GenerateClassroomInput,
   baseUrl: string,
-): Promise<void> {
+): Promise<'succeeded' | 'failed'> {
   const existing = runningJobs.get(jobId);
   if (existing) {
     return existing;
@@ -32,6 +32,7 @@ export function runClassroomGenerationJob(
       });
 
       await markClassroomGenerationJobSucceeded(jobId, result);
+      return 'succeeded' as const;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       log.error(`Classroom generation job ${jobId} failed:`, error);
@@ -40,6 +41,7 @@ export function runClassroomGenerationJob(
       } catch (markFailedError) {
         log.error(`Failed to persist failed status for job ${jobId}:`, markFailedError);
       }
+      return 'failed' as const;
     } finally {
       runningJobs.delete(jobId);
     }

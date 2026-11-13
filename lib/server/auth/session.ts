@@ -1,7 +1,7 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 
-import { ensureTeacherTrial } from '@/lib/server/billing/store';
+import { claimSchoolInvite, ensureTeacherTrial } from '@/lib/server/billing/store';
 import { firebaseAdminAuth, firebaseAdminDb } from '@/lib/server/firebase/admin';
 
 export const TEACHER_SESSION_COOKIE = 'smartboard_firebase_session';
@@ -67,6 +67,7 @@ export async function createTeacherSession(idToken: string) {
     { merge: true },
   );
   await ensureTeacherTrial(decoded.uid, typeof createdAt === 'number' ? createdAt : Date.now());
+  if (user.email) await claimSchoolInvite(decoded.uid, user.email);
   return { token, user };
 }
 

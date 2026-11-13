@@ -43,7 +43,7 @@ Do not set `FIREBASE_AUTH_EMULATOR_HOST` or `FIRESTORE_EMULATOR_HOST` for real s
 
 ## Teacher subscription (India)
 
-A 15-day free trial starts at the teacher's first Google sign-in. After that, new lesson generation needs the Rs 99/month Razorpay plan. The steps to create the test-mode keys, the plan, and the webhook, and the KYC required before live mode, are in [SETUP-RAZORPAY.md](./SETUP-RAZORPAY.md).
+A 15-day free trial with 10 chalks starts at the teacher's first Google sign-in. One chalk makes one new AI lesson. After the trial, Pro, Max, School, and chalk top-ups are billed through Razorpay. The steps to create the test-mode keys, the three plans, and the webhook, and the KYC required before live mode, are in [SETUP-RAZORPAY.md](./SETUP-RAZORPAY.md).
 
 Add `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET`, `RAZORPAY_PLAN_ID`, and `NEXT_PUBLIC_RAZORPAY_KEY_ID` to the same `.env` file. The key secret and the webhook secret stay on the server.
 

@@ -7,7 +7,7 @@ export default async function CreateLessonPage() {
   const user = await requireTeacherPageSession();
   let state: 'open' | 'blocked' | 'unavailable' = 'unavailable';
   try {
-    state = (await loadTeacherBillingView(user.id)).entitled ? 'open' : 'blocked';
+    state = (await loadTeacherBillingView(user.id)).canStartLesson ? 'open' : 'blocked';
   } catch {
     state = 'unavailable';
   }

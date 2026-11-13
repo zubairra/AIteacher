@@ -25,11 +25,14 @@ function emulatorDb() {
 test('trial banner, billing page, and blocked generation', async ({ page }) => {
   await signInWithGoogle(page, 'teacher-billing@example.test', 'Teacher Billing');
   await expect(page.getByTestId('trial-banner')).toContainText(/days left/);
+  await expect(page.getByTestId('chalk-balance')).toContainText(/chalks left/);
   await shot(page, '01-trial-banner');
 
-  await page.getByRole('link', { name: 'Billing' }).first().click();
+  await page.getByRole('link', { name: 'Plans' }).first().click();
   await expect(page.getByTestId('billing-page')).toBeVisible();
   await expect(page.getByTestId('billing-status')).toHaveText('Free trial');
+  await expect(page.getByRole('heading', { name: 'Pro' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Max' })).toBeVisible();
   await expect(page.getByTestId('subscribe-button')).toBeVisible();
   await expect(page.getByTestId('billing-next-date')).not.toHaveText('Not scheduled');
   await shot(page, '02-billing-page');

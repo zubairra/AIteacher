@@ -42,6 +42,7 @@ import {
   generationSetupResponse,
   requireTeacherGeneration,
 } from '@/lib/server/auth/generation-access';
+import { settleLessonGeneration } from '@/lib/server/billing/lesson-chalk';
 import { sortDocumentImagesForVision } from '@/lib/document/bundle';
 import { resolveVisionImagesForPrompt } from '@/lib/persistence/resolve-vision-images';
 import { resolveVocationalActive } from '@/lib/config/feature-flags';
@@ -291,8 +292,9 @@ function ensureUniqueOutlineId(outline: SceneOutline, usedIds: Set<string>): Sce
 }
 
 export async function POST(req: NextRequest) {
-  const denied = await requireTeacherGeneration(req);
+  const denied = await requireTeacherGeneration(req, { lesson: true });
   if (denied) return denied;
+  let lessonReady = false;
   let requirementSnippet: string | undefined;
   let resolvedModelString: string | undefined;
   try {
@@ -705,6 +707,7 @@ export async function POST(req: NextRequest) {
           }
 
           if (parsedOutlines.length > 0) {
+            lessonReady = true;
             // Replace sequential gen_img_N/gen_vid_N with globally unique IDs
             const uniquifiedOutlines = uniquifyMediaElementIds(parsedOutlines);
             // Send done event with all outlines
@@ -735,6 +738,7 @@ export async function POST(req: NextRequest) {
           });
           controller.enqueue(encoder.encode(`data: ${errorEvent}\n\n`));
         } finally {
+          await settleLessonGeneration(req, lessonReady);
           stopHeartbeat();
           // The controller may already be closed if the client disconnected.
           try {
@@ -754,6 +758,7 @@ export async function POST(req: NextRequest) {
       },
     });
   } catch (error) {
+    await settleLessonGeneration(req, false);
     const setup = generationSetupResponse(error);
     if (setup) return setup;
     log.error(
