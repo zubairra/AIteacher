@@ -87,7 +87,7 @@ export function TeacherShell({
               <Link
                 href="/billing"
                 data-testid="chalk-balance"
-                className="mr-1 inline-flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm font-semibold text-slate-800 hover:bg-slate-100"
+                className="mr-1 inline-flex min-h-11 shrink-0 items-center gap-2 whitespace-nowrap rounded-lg px-3 text-sm font-semibold text-slate-800 hover:bg-slate-100"
               >
                 <ChalkIcon className="size-4" />
                 {chalkLabel}

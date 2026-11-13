@@ -1,12 +1,12 @@
 # Razorpay teacher subscription
 
-SmartBoard bills teachers in India only. A new teacher gets a 15-day free trial and 10 chalks at their first Google sign-in. No card is collected for the trial. One chalk makes one new AI lesson. A lesson that fails does not spend a chalk. Monthly chalks reset on the billing cycle and do not roll over. Top-up chalks stay until they are used.
+SmartBoard bills teachers in India only. A new teacher gets a 15-day free trial and 5 chalks a week at their first Google sign-in. The trial can cover three weekly grants (the start, day 7, and day 14), so the most they can spend is 15 chalks. Unused chalks from one week do not carry into the next. No card is collected for the trial. One chalk makes one new AI lesson. A lesson that fails does not spend a chalk. Included chalks refill every 7 days from the plan start and do not roll over. The Pro and Max bills stay monthly, and the School bill stays yearly. Top-up chalks stay until they are used.
 
 Plans, in `lib/teacher/billing.ts` (`CHALK_PLANS`):
 
-- Pro: ₹99/month, 20 chalks a month, one teacher.
-- Max: ₹499/month, 130 chalks a month, one teacher.
-- School: ₹89 per teacher per month, billed annually at ₹1,068 per teacher. Minimum 10 seats. 17 chalks per seat each month in one shared pool. One bill for the school.
+- Pro: ₹99/month, 5 chalks a week, one teacher.
+- Max: ₹499/month, 30 chalks a week, one teacher.
+- School: ₹89 per teacher per month, billed annually at ₹1,068 per teacher. Minimum 10 seats. 4 chalks per seat each week in one shared pool. One bill for the school.
 - Top-up: 100 chalks for ₹399, one-time, usable on any plan.
 
 A teacher who has saved their own provider key does not spend chalks (`ownKeyConsumesChalk` is false). Change the numbers only in that file. A Razorpay plan keeps the amount it was created with, so create a new plan after a price change.
@@ -45,7 +45,7 @@ Add these to `.env` (this repo also reads `.env.local`; `.env.local` wins). Rest
 6. Choose a plan or top up. Razorpay Checkout opens. In Test Mode use a test success method, not a real card:
    - Card: `4111 1111 1111 1111`, any future expiry, any CVV, any name.
    - UPI: `success@razorpay`.
-7. After Checkout, Plans stays on “confirmation pending” until the webhook arrives. Refresh after Razorpay delivers `subscription.activated`, `subscription.charged`, or `order.paid`. Monthly chalks refill on `subscription.charged` and unused monthly chalks do not roll over. Top-up chalks are added by `order.paid` and stay until they are used. **Cancel** asks Razorpay to stop the renewal at the end of the current period. A failed or halted payment clears monthly chalks. Saved lessons can still be opened and taught.
+7. After Checkout, Plans stays on “confirmation pending” until the webhook arrives. Refresh after Razorpay delivers `subscription.activated`, `subscription.charged`, or `order.paid`. The webhook records the plan and the next bill date. Included chalks refill every 7 days from the subscription start, even if no webhook arrives that week, and unused weekly chalks do not roll over. Top-up chalks are added by `order.paid` and stay until they are used. **Cancel** asks Razorpay to stop the renewal at the end of the current period. A failed or halted payment clears the weekly chalks. Saved lessons can still be opened and taught.
 8. To grant a 30-day school pilot, run `pnpm exec tsx scripts/grant-school-pilot.ts --admin-uid FIREBASE_UID --seats 10 --name "School name"` on a machine with Firebase Admin credentials. That admin opens **School**, invites teachers by email, and can remove a seat. The invited teacher joins the shared pool when they sign in with that Google email. A paid school uses the yearly plan with quantity equal to the number of seats.
 
 The local emulator command `pnpm test:firebase-emulator` does not call Razorpay. It checks the trial banner, the billing page, the blocked screen, and that the generation API returns 402 after the trial.

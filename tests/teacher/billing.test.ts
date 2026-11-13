@@ -29,25 +29,26 @@ function trial(startedAt = NOW): ReturnType<typeof emptyBilling> {
 describe('teacher billing plan', () => {
   it('keeps the price and the trial length in one config', () => {
     expect(CHALK_PLANS.trial.days).toBe(15);
-    expect(CHALK_PLANS.trial.chalks).toBe(10);
+    expect(CHALK_PLANS.trial.chalksPerWeek).toBe(5);
     expect(CHALK_PLANS.pro.pricePaise).toBe(9900);
-    expect(CHALK_PLANS.pro.chalksPerMonth).toBe(20);
+    expect(CHALK_PLANS.pro.chalksPerWeek).toBe(5);
     expect(CHALK_PLANS.max.pricePaise).toBe(49900);
-    expect(CHALK_PLANS.max.chalksPerMonth).toBe(130);
+    expect(CHALK_PLANS.max.chalksPerWeek).toBe(30);
     expect(CHALK_PLANS.school.minSeats).toBe(10);
     expect(CHALK_PLANS.school.annualPaisePerSeat).toBe(106800);
+    expect(CHALK_PLANS.school.chalksPerSeatPerWeek).toBe(4);
     expect(CHALK_PLANS.topUp.chalks).toBe(100);
     expect(CHALK_PLANS.ownKeyConsumesChalk).toBe(false);
     expect(
-      planMarginPaise(CHALK_PLANS.pro.pricePaise, CHALK_PLANS.pro.chalksPerMonth),
+      planMarginPaise(CHALK_PLANS.pro.pricePaise, CHALK_PLANS.pro.chalksPerWeek * 4),
     ).toBeGreaterThan(2000);
     expect(
-      planMarginPaise(CHALK_PLANS.max.pricePaise, CHALK_PLANS.max.chalksPerMonth),
+      planMarginPaise(CHALK_PLANS.max.pricePaise, CHALK_PLANS.max.chalksPerWeek * 4),
     ).toBeGreaterThan(2000);
     expect(
       planMarginPaise(
         CHALK_PLANS.school.pricePaisePerSeatPerMonth,
-        CHALK_PLANS.school.chalksPerSeatPerMonth,
+        CHALK_PLANS.school.chalksPerSeatPerWeek * 4,
       ),
     ).toBeGreaterThan(2000);
     expect(formatInr(CHALK_PLANS.pro.pricePaise)).toContain('99');
@@ -72,7 +73,7 @@ describe('teacher billing plan', () => {
   });
 
   it('allows generation when Razorpay reports an active or authorised subscription', () => {
-    const expired = { ...trial(NOW - 20 * DAY), plan: 'pro' as const, monthlyChalks: 20 };
+    const expired = { ...trial(NOW - 20 * DAY), plan: 'pro' as const, weeklyChalks: 5 };
     expect(isTeacherEntitled({ ...expired, status: 'active' }, NOW)).toBe(true);
     expect(isTeacherEntitled({ ...expired, status: 'authenticated' }, NOW)).toBe(true);
     const view = toTeacherBillingView(
@@ -189,30 +190,31 @@ describe('teacher billing plan', () => {
     const record = trial();
     const reserved = reserveChalk(record, null, 'hold-1', NOW);
     expect(reserved.ok).toBe(true);
-    expect(reserved.record.monthlyChalks).toBe(CHALK_PLANS.trial.chalks - 1);
+    expect(reserved.record.weeklyChalks).toBe(CHALK_PLANS.trial.chalksPerWeek - 1);
     const again = reserveChalk(reserved.record, null, 'hold-1', NOW);
-    expect(again.record.monthlyChalks).toBe(CHALK_PLANS.trial.chalks - 1);
+    expect(again.record.weeklyChalks).toBe(CHALK_PLANS.trial.chalksPerWeek - 1);
     const failed = settleChalk(reserved.record, null, 'hold-1', false);
-    expect(failed.record.monthlyChalks).toBe(CHALK_PLANS.trial.chalks);
+    expect(failed.record.weeklyChalks).toBe(CHALK_PLANS.trial.chalksPerWeek);
     const spent = settleChalk(reserved.record, null, 'hold-1', true);
-    expect(spent.record.monthlyChalks).toBe(CHALK_PLANS.trial.chalks - 1);
+    expect(spent.record.weeklyChalks).toBe(CHALK_PLANS.trial.chalksPerWeek - 1);
     expect(spent.record.topUpChalks).toBe(0);
   });
 
-  it('resets monthly chalks without dropping a top-up', () => {
+  it('refills weekly chalks after 7 days and keeps the top-up', () => {
     const record = {
-      ...trial(NOW - 40 * DAY),
+      ...trial(),
       plan: 'pro' as const,
       status: 'active' as const,
-      monthlyChalks: 4,
+      weeklyChalks: 1,
       topUpChalks: 12,
-      currentPeriodEnd: NOW - DAY,
+      chalkPeriodStart: NOW - 8 * DAY,
+      chalkWindow: 0,
     };
     const view = toTeacherBillingView(record, NOW);
-    expect(view.monthlyChalks).toBe(0);
+    expect(view.weeklyChalks).toBe(CHALK_PLANS.pro.chalksPerWeek);
     expect(view.topUpChalks).toBe(12);
-    expect(view.chalksLeft).toBe(12);
-    const refilled = applyParsedBillingEvent(record, {
+    expect(view.chalksLabel).toMatch(/chalks left, refills /);
+    const renewed = applyParsedBillingEvent(record, {
       name: 'subscription.charged',
       createdAtMs: NOW,
       subscriptionId: 'sub_123',
@@ -226,23 +228,34 @@ describe('teacher billing plan', () => {
       planId: 'plan_pro',
       currentPeriodEnd: NOW + 30 * DAY,
     });
-    expect(refilled.monthlyChalks).toBe(CHALK_PLANS.pro.chalksPerMonth);
-    expect(refilled.topUpChalks).toBe(12);
+    expect(renewed.weeklyChalks).toBe(1);
+    expect(renewed.topUpChalks).toBe(12);
+    expect(renewed.chalkPeriodStart).toBe(record.chalkPeriodStart);
   });
 
   it('shares a school pool and records which teacher used a chalk', () => {
-    const teacher = { ...trial(), schoolId: 'school-1', monthlyChalks: 0, plan: 'school' as const };
+    const teacher = { ...trial(), schoolId: 'school-1', weeklyChalks: 0, plan: 'school' as const };
     const pool = {
       seatCount: CHALK_PLANS.school.minSeats,
       poolChalks: schoolPoolAllowance(CHALK_PLANS.school.minSeats),
+      chalkPeriodStart: NOW,
+      chalkWindow: 0,
       status: 'active' as const,
       pilotEndsAt: null,
       periodEnd: NOW + 30 * DAY,
     };
-    expect(pool.poolChalks).toBe(170);
+    expect(pool.poolChalks).toBe(40);
     const first = reserveChalk(teacher, pool, 'hold-a', NOW);
     const second = reserveChalk({ ...teacher, ownerUid: 'teacher-b' }, first.school, 'hold-b', NOW);
-    expect(second.school?.poolChalks).toBe(168);
+    expect(second.school?.poolChalks).toBe(38);
+    const stale = {
+      ...pool,
+      poolChalks: 1,
+      chalkPeriodStart: NOW - 8 * DAY,
+    };
+    const refreshed = reserveChalk({ ...teacher, topUpChalks: 7 }, stale, 'hold-week', NOW);
+    expect(refreshed.school?.poolChalks).toBe(schoolPoolAllowance(pool.seatCount) - 1);
+    expect(refreshed.record.topUpChalks).toBe(7);
     const usage = recordSchoolUsage(recordSchoolUsage({}, 'teacher-a'), 'teacher-b');
     expect(usage).toEqual({ 'teacher-a': 1, 'teacher-b': 1 });
     const returned = settleChalk(first.record, first.school, 'hold-a', false);

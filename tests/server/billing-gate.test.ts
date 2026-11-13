@@ -43,7 +43,7 @@ describe('subscription gate on generation', () => {
       ...emptyBilling('teacher-a', Date.now() - 40 * 24 * 60 * 60 * 1000, Date.now()),
       status: 'active',
       plan: 'pro',
-      monthlyChalks: 20,
+      weeklyChalks: 5,
     });
     const { requireTeacherGeneration } = await import('@/lib/server/auth/generation-access');
     const denied = await requireTeacherGeneration(

@@ -25,7 +25,7 @@ function emulatorDb() {
 test('trial banner, billing page, and blocked generation', async ({ page }) => {
   await signInWithGoogle(page, 'teacher-billing@example.test', 'Teacher Billing');
   await expect(page.getByTestId('trial-banner')).toContainText(/days left/);
-  await expect(page.getByTestId('chalk-balance')).toContainText(/chalks left/);
+  await expect(page.getByTestId('chalk-balance')).toContainText(/chalks left, refills /);
   await shot(page, '01-trial-banner');
 
   await page.getByRole('link', { name: 'Plans' }).first().click();

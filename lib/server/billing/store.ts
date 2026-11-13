@@ -5,6 +5,7 @@ import {
   emptyBilling,
   isBillingStatus,
   isTeacherPlanId,
+  refreshSchoolPool,
   reserveChalk,
   schoolPoolAllowance,
   settleChalk,
@@ -54,8 +55,12 @@ export function billingRecordFromData(
     lastEventAt: numberField(data.lastEventAt) ?? 0,
     updatedAt: numberField(data.updatedAt) ?? trialStartedAt,
     plan: isTeacherPlanId(data.plan) ? data.plan : 'trial',
-    monthlyChalks:
-      numberField(data.monthlyChalks) ?? (trialEndsAt > Date.now() ? CHALK_PLANS.trial.chalks : 0),
+    weeklyChalks:
+      numberField(data.weeklyChalks) ??
+      numberField(data.monthlyChalks) ??
+      (trialEndsAt > Date.now() ? CHALK_PLANS.trial.chalksPerWeek : 0),
+    chalkPeriodStart: numberField(data.chalkPeriodStart) ?? trialStartedAt,
+    chalkWindow: numberField(data.chalkWindow) ?? 0,
     topUpChalks: numberField(data.topUpChalks) ?? 0,
     schoolId: typeof data.schoolId === 'string' ? data.schoolId : null,
     openHolds: parseHolds(data.openHolds),
@@ -67,13 +72,14 @@ function parseHolds(value: unknown): ChalkHold[] {
   const holds: ChalkHold[] = [];
   for (const item of value) {
     if (!item || typeof item !== 'object') continue;
-    const hold = item as Partial<ChalkHold>;
+    const hold = item as { id?: unknown; at?: unknown; source?: unknown; schoolId?: unknown };
     if (typeof hold.id !== 'string' || typeof hold.at !== 'number') continue;
-    if (hold.source !== 'monthly' && hold.source !== 'topup' && hold.source !== 'school') continue;
+    const source = hold.source === 'monthly' || hold.source === 'weekly' ? 'weekly' : hold.source;
+    if (source !== 'weekly' && source !== 'topup' && source !== 'school') continue;
     holds.push({
       id: hold.id,
       at: hold.at,
-      source: hold.source,
+      source,
       schoolId: typeof hold.schoolId === 'string' ? hold.schoolId : null,
     });
   }
@@ -91,6 +97,8 @@ function schoolPoolFromData(data: Record<string, unknown> | undefined): SchoolCh
   return {
     seatCount: numberField(data.seatCount) ?? 0,
     poolChalks: numberField(data.poolChalks) ?? 0,
+    chalkPeriodStart: numberField(data.chalkPeriodStart),
+    chalkWindow: numberField(data.chalkWindow) ?? 0,
     status,
     pilotEndsAt: numberField(data.pilotEndsAt),
     periodEnd: numberField(data.periodEnd),
@@ -212,14 +220,21 @@ export async function applyBillingWebhook(
     ) {
       const seats =
         event.quantity ?? numberField(schoolSnap?.data()?.seatCount) ?? CHALK_PLANS.school.minSeats;
+      const hasAnchor = numberField(schoolSnap?.data()?.chalkPeriodStart) !== null;
       tx.set(
         schoolRef,
         {
-          poolChalks: schoolPoolAllowance(seats),
           seatCount: seats,
           status: 'active',
           periodEnd: event.currentPeriodEnd,
           adminUid: uid,
+          ...(hasAnchor
+            ? {}
+            : {
+                chalkPeriodStart: event.createdAtMs,
+                chalkWindow: 0,
+                poolChalks: schoolPoolAllowance(seats),
+              }),
         },
         { merge: true },
       );
@@ -249,11 +264,25 @@ export async function reserveLessonChalk(
     if (!reserved.ok || !reserved.hold) return 'denied';
     tx.set(billingRef, reserved.record);
     if (schoolRef && reserved.school) {
-      tx.set(schoolRef, { poolChalks: reserved.school.poolChalks }, { merge: true });
+      tx.set(
+        schoolRef,
+        {
+          poolChalks: reserved.school.poolChalks,
+          chalkWindow: reserved.school.chalkWindow,
+          chalkPeriodStart: reserved.school.chalkPeriodStart,
+        },
+        { merge: true },
+      );
     }
-    if (usageRef && reserved.hold.source === 'school' && !alreadyOpen) {
-      const used = numberField(usageSnap?.data()?.chalksUsedThisPeriod) ?? 0;
-      tx.set(usageRef, { chalksUsedThisPeriod: used + 1 }, { merge: true });
+    if (usageRef && reserved.school && reserved.hold.source === 'school' && !alreadyOpen) {
+      const sameWindow =
+        numberField(usageSnap?.data()?.chalkWindow) === reserved.school.chalkWindow;
+      const used = sameWindow ? (numberField(usageSnap?.data()?.chalksUsedThisPeriod) ?? 0) : 0;
+      tx.set(
+        usageRef,
+        { chalksUsedThisPeriod: used + 1, chalkWindow: reserved.school.chalkWindow },
+        { merge: true },
+      );
     }
     return 'reserved';
   });
@@ -281,7 +310,15 @@ export async function settleLessonChalk(
     const settled = settleChalk(current, schoolPoolFromData(schoolSnap?.data()), holdId, success);
     tx.set(billingRef, settled.record);
     if (schoolRef && settled.school) {
-      tx.set(schoolRef, { poolChalks: settled.school.poolChalks }, { merge: true });
+      tx.set(
+        schoolRef,
+        {
+          poolChalks: settled.school.poolChalks,
+          chalkWindow: settled.school.chalkWindow,
+          chalkPeriodStart: settled.school.chalkPeriodStart,
+        },
+        { merge: true },
+      );
     }
     if (usageRef) {
       const used = numberField(usageSnap?.data()?.chalksUsedThisPeriod) ?? 0;
@@ -299,10 +336,23 @@ export async function readSchoolForAdmin(
   const school = await db.doc(schoolPath(billing.schoolId)).get();
   if (!school.exists || school.data()?.adminUid !== adminUid) return null;
   const members = await db.collection(`schools/${billing.schoolId}/members`).get();
+  const stored = schoolPoolFromData(school.data());
+  const pool = stored ? refreshSchoolPool(stored, Date.now()) : null;
   return {
     id: billing.schoolId,
     ...school.data(),
-    members: members.docs.map((item) => ({ uid: item.id, ...item.data() })),
+    ...(pool
+      ? { poolChalks: pool.poolChalks, chalkWindow: pool.chalkWindow, status: pool.status }
+      : {}),
+    members: members.docs.map((item) => {
+      const data = item.data();
+      const sameWindow = pool ? numberField(data.chalkWindow) === pool.chalkWindow : true;
+      return {
+        uid: item.id,
+        ...data,
+        chalksUsedThisPeriod: sameWindow ? (numberField(data.chalksUsedThisPeriod) ?? 0) : 0,
+      };
+    }),
   };
 }
 
@@ -364,10 +414,11 @@ export async function claimSchoolInvite(uid: string, email: string): Promise<voi
     tx.set(memberRef, {
       email: email.trim().toLowerCase(),
       role: 'teacher',
+      chalkWindow: 0,
       chalksUsedThisPeriod: 0,
     });
     tx.set(inviteRef, { status: 'accepted' }, { merge: true });
-    tx.set(billingRef, { ...current, schoolId, plan: 'school', monthlyChalks: 0 });
+    tx.set(billingRef, { ...current, schoolId, plan: 'school', weeklyChalks: 0 });
   });
 }
 
@@ -390,17 +441,20 @@ export async function grantSchoolPilot(input: {
     status: 'pilot',
     pilotEndsAt: now + CHALK_PLANS.school.pilotDays * 24 * 60 * 60 * 1000,
     periodEnd: null,
+    chalkPeriodStart: now,
+    chalkWindow: 0,
     poolChalks: schoolPoolAllowance(seats),
   });
   await db.doc(`schools/${schoolId}/members/${input.adminUid}`).set({
     role: 'admin',
+    chalkWindow: 0,
     chalksUsedThisPeriod: 0,
   });
   await db.doc(billingPath(input.adminUid)).set({
     ...billing,
     schoolId,
     plan: 'school',
-    monthlyChalks: 0,
+    weeklyChalks: 0,
   });
   return schoolId;
 }

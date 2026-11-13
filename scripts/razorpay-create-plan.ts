@@ -27,7 +27,7 @@ const plans = [
     interval: CHALK_PLANS.pro.interval,
     name: CHALK_PLANS.pro.name,
     amount: CHALK_PLANS.pro.pricePaise,
-    description: `${CHALK_PLANS.pro.chalksPerMonth} chalks a month`,
+    description: `${CHALK_PLANS.pro.chalksPerWeek} chalks a week, billed monthly`,
   },
   {
     env: 'RAZORPAY_MAX_PLAN_ID',
@@ -35,7 +35,7 @@ const plans = [
     interval: CHALK_PLANS.max.interval,
     name: CHALK_PLANS.max.name,
     amount: CHALK_PLANS.max.pricePaise,
-    description: `${CHALK_PLANS.max.chalksPerMonth} chalks a month`,
+    description: `${CHALK_PLANS.max.chalksPerWeek} chalks a week, billed monthly`,
   },
   {
     env: 'RAZORPAY_SCHOOL_PLAN_ID',
@@ -43,7 +43,7 @@ const plans = [
     interval: CHALK_PLANS.school.interval,
     name: CHALK_PLANS.school.name,
     amount: CHALK_PLANS.school.annualPaisePerSeat,
-    description: `${CHALK_PLANS.school.chalksPerSeatPerMonth} chalks per seat each month, billed yearly`,
+    description: `${CHALK_PLANS.school.chalksPerSeatPerWeek} chalks per seat each week, billed yearly`,
   },
 ] as const;
 

@@ -46,7 +46,7 @@ const plans = [
     name: 'Pro',
     price: formatInr(CHALK_PLANS.pro.pricePaise),
     period: 'month',
-    chalks: `${CHALK_PLANS.pro.chalksPerMonth} chalks a month`,
+    chalks: `${CHALK_PLANS.pro.chalksPerWeek} chalks a week`,
     detail: 'For one teacher.',
   },
   {
@@ -54,7 +54,7 @@ const plans = [
     name: 'Max',
     price: formatInr(CHALK_PLANS.max.pricePaise),
     period: 'month',
-    chalks: `${CHALK_PLANS.max.chalksPerMonth} chalks a month`,
+    chalks: `${CHALK_PLANS.max.chalksPerWeek} chalks a week`,
     detail: 'For one teacher who generates often.',
   },
 ];
@@ -134,8 +134,8 @@ export function BillingPanel({ initial }: { initial: TeacherBillingView }) {
           </dd>
         </div>
         <div>
-          <dt className="text-sm text-slate-500">Monthly chalks left</dt>
-          <dd className="mt-1 text-xl font-semibold">{view.monthlyChalks}</dd>
+          <dt className="text-sm text-slate-500">Weekly chalks left</dt>
+          <dd className="mt-1 text-xl font-semibold">{view.weeklyChalks}</dd>
         </div>
         <div>
           <dt className="text-sm text-slate-500">Top-up chalks</dt>
@@ -176,7 +176,7 @@ export function BillingPanel({ initial }: { initial: TeacherBillingView }) {
             Top up {CHALK_PLANS.topUp.chalks} chalks for {formatInr(CHALK_PLANS.topUp.pricePaise)}
           </p>
           <p className="mt-1 text-sm text-slate-600">
-            One-time. Usable on any plan. These chalks do not expire at the end of the month.
+            One-time. Usable on any plan. These chalks never expire.
           </p>
           <button
             type="button"
@@ -196,8 +196,9 @@ export function BillingPanel({ initial }: { initial: TeacherBillingView }) {
         <p className="mt-2 text-slate-700">
           {formatInr(CHALK_PLANS.school.pricePaisePerSeatPerMonth)} per teacher per month, billed
           annually at {formatInr(CHALK_PLANS.school.annualPaisePerSeat)} per teacher. Minimum{' '}
-          {CHALK_PLANS.school.minSeats} seats. {CHALK_PLANS.school.chalksPerSeatPerMonth} chalks per
-          seat each month, shared in one pool. One bill for the school.
+          {CHALK_PLANS.school.minSeats} seats. {CHALK_PLANS.school.chalksPerSeatPerWeek} chalks per
+          seat each week, shared in one pool. The bill is still once a year. One bill for the
+          school.
         </p>
         <a
           href="/school"

@@ -80,9 +80,9 @@ export function SchoolAdmin({ initial }: { initial: Record<string, unknown> | nu
         <h1 className="text-3xl font-bold">School</h1>
         <p className="mt-4 text-base leading-7 text-slate-600">
           A school plan is one annual bill for at least {CHALK_PLANS.school.minSeats} teachers, with{' '}
-          {CHALK_PLANS.school.chalksPerSeatPerMonth} chalks per seat each month in a shared pool. A
-          30-day pilot can be granted by SmartBoard. Ask the owner to run the pilot script for your
-          Google account, then return here to invite teachers.
+          {CHALK_PLANS.school.chalksPerSeatPerWeek} chalks per seat each week in a shared pool. The
+          bill is still yearly. A 30-day pilot can be granted by SmartBoard. Ask the owner to run
+          the pilot script for your Google account, then return here to invite teachers.
         </p>
       </section>
     );
@@ -129,7 +129,7 @@ export function SchoolAdmin({ initial }: { initial: Record<string, unknown> | nu
               <p className="font-medium">{member.email || member.uid}</p>
               <p className="text-sm text-slate-500">
                 {member.role === 'admin' ? 'Admin' : 'Teacher'} · {member.chalksUsedThisPeriod ?? 0}{' '}
-                chalks used this period
+                chalks used this week
               </p>
             </div>
             {member.role !== 'admin' ? (

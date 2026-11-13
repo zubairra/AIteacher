@@ -3,18 +3,20 @@
  * Amounts are paise (₹99 = 9900).
  *
  * One chalk is one new AI-generated lesson. A lesson that fails does not spend
- * a chalk. Retries inside that same attempt do not spend another. Monthly
- * chalks reset on the billing cycle and do not roll over. Top-up chalks stay
- * until they are used.
+ * a chalk. Retries inside that same attempt do not spend another. Included
+ * chalks refill every 7 days from the plan start and do not roll over. The
+ * bill stays monthly for Pro and Max and yearly for School. Top-up chalks
+ * stay until they are used.
  *
- * Margin, worst case, if every included chalk is used. AI cost is about ₹3 a
- * lesson. GST is 18% of the sticker price. Razorpay is about 2.4%.
- * Kept ≈ price/1.18 − price×0.024 − chalks×₹3, and each paid plan stays
- * above ₹20 per teacher per month:
- * - Pro ₹99 / 20 chalks ≈ ₹21.52
- * - Max ₹499 / 130 chalks ≈ ₹20.91
- * - School ₹89 / 17 chalks ≈ ₹22.29
+ * Margin, if every weekly chalk is used across four refills in a billing
+ * month. AI cost is about ₹3 a lesson. GST is 18%. Razorpay is about 2.4%.
+ * Kept ≈ price/1.18 − price×0.024 − chalks×₹3:
+ * - Pro ₹99 / 5 a week (20 in four weeks) ≈ ₹21.52
+ * - Max ₹499 / 30 a week (120 in four weeks) ≈ ₹50.90
+ * - School ₹89 / 4 a seat a week (16 in four weeks) ≈ ₹25.28
  * - Top-up ₹399 / 100 chalks ≈ ₹28.56
+ * A 31-day span can contain five refills. That still keeps Max and the top-up
+ * above ₹20, and drops Pro to about ₹6.50 and School to about ₹13.
  *
  * Teachers who have saved their own provider key do not spend chalks when
  * `ownKeyConsumesChalk` is false. They pay their own model provider instead.
@@ -25,10 +27,15 @@ export const CHALK_PLANS = {
   aiCostPaise: 300,
   gstRate: 0.18,
   razorpayFeeRate: 0.024,
-  trial: { days: 15, chalks: 10 },
+  /**
+   * Trial grants this many chalks at the start and again every 7 days while
+   * the 15 days last. That is at most three grants (15 chalks). Unused chalks
+   * from one week do not carry into the next.
+   */
+  trial: { days: 15, chalksPerWeek: 5 },
   pro: {
     pricePaise: 9900,
-    chalksPerMonth: 20,
+    chalksPerWeek: 5,
     period: 'monthly' as const,
     interval: 1,
     cycleCount: 120,
@@ -36,7 +43,7 @@ export const CHALK_PLANS = {
   },
   max: {
     pricePaise: 49900,
-    chalksPerMonth: 130,
+    chalksPerWeek: 30,
     period: 'monthly' as const,
     interval: 1,
     cycleCount: 120,
@@ -46,7 +53,7 @@ export const CHALK_PLANS = {
     pricePaisePerSeatPerMonth: 8900,
     annualPaisePerSeat: 1_068_00,
     minSeats: 10,
-    chalksPerSeatPerMonth: 17,
+    chalksPerSeatPerWeek: 4,
     pilotDays: 30,
     period: 'yearly' as const,
     interval: 1,
@@ -57,6 +64,7 @@ export const CHALK_PLANS = {
 } as const;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+const WEEK_MS = 7 * DAY_MS;
 /** Razorpay rejects a subscription start_at that is sooner than this. */
 export const SUBSCRIPTION_START_DELAY_MS = 15 * 60 * 1000;
 /** A crashed lesson attempt returns its chalk after this long. */
@@ -81,7 +89,7 @@ export const BILLING_STATUSES = [
 
 export type BillingStatus = (typeof BILLING_STATUSES)[number];
 export type TeacherPlanId = 'trial' | 'pro' | 'max' | 'school' | 'none';
-export type ChalkSource = 'monthly' | 'topup' | 'school';
+export type ChalkSource = 'weekly' | 'topup' | 'school';
 
 const PAID_ACCESS = new Set<BillingStatus>(['active', 'authenticated']);
 
@@ -99,7 +107,12 @@ export interface TeacherBillingRecord {
   trialEndsAt: number;
   status: BillingStatus;
   plan: TeacherPlanId;
-  monthlyChalks: number;
+  /** Included chalks left in the current 7-day window. */
+  weeklyChalks: number;
+  /** Start of the rolling week. Trial uses the first sign-in. Paid plans use the subscription start. */
+  chalkPeriodStart: number;
+  /** How many full weeks have already been granted from chalkPeriodStart. */
+  chalkWindow: number;
   topUpChalks: number;
   schoolId: string | null;
   openHolds: readonly ChalkHold[];
@@ -114,6 +127,8 @@ export interface TeacherBillingRecord {
 export interface SchoolChalkPool {
   seatCount: number;
   poolChalks: number;
+  chalkPeriodStart: number | null;
+  chalkWindow: number;
   status: 'pilot' | 'active' | 'cancelled';
   pilotEndsAt: number | null;
   periodEnd: number | null;
@@ -127,8 +142,9 @@ export interface TeacherBillingView {
   daysLeft: number;
   chalksLeft: number;
   chalksLabel: string;
-  monthlyChalks: number;
+  weeklyChalks: number;
   topUpChalks: number;
+  nextRefreshAt: number | null;
   priceLabel: string;
   statusLabel: string;
   headline: string;
@@ -182,15 +198,24 @@ export function trialEndsAt(startedAt: number): number {
   return startedAt + CHALK_PLANS.trial.days * DAY_MS;
 }
 
-export function monthlyChalksFor(plan: TeacherPlanId): number {
-  if (plan === 'trial') return CHALK_PLANS.trial.chalks;
-  if (plan === 'pro') return CHALK_PLANS.pro.chalksPerMonth;
-  if (plan === 'max') return CHALK_PLANS.max.chalksPerMonth;
+export function weeklyChalksFor(plan: TeacherPlanId): number {
+  if (plan === 'trial') return CHALK_PLANS.trial.chalksPerWeek;
+  if (plan === 'pro') return CHALK_PLANS.pro.chalksPerWeek;
+  if (plan === 'max') return CHALK_PLANS.max.chalksPerWeek;
   return 0;
 }
 
 export function schoolPoolAllowance(seatCount: number): number {
-  return Math.max(0, seatCount) * CHALK_PLANS.school.chalksPerSeatPerMonth;
+  return Math.max(0, seatCount) * CHALK_PLANS.school.chalksPerSeatPerWeek;
+}
+
+export function chalkWindowIndex(anchor: number, now: number): number {
+  if (now <= anchor) return 0;
+  return Math.floor((now - anchor) / WEEK_MS);
+}
+
+export function nextChalkRefreshAt(anchor: number, now: number): number {
+  return anchor + (chalkWindowIndex(anchor, now) + 1) * WEEK_MS;
 }
 
 /** Paise kept after GST, Razorpay, and the full chalk allowance at the AI cost. */
@@ -209,7 +234,9 @@ export function emptyBilling(uid: string, startedAt: number, now: number): Teach
     trialEndsAt: trialEndsAt(start),
     status: 'none',
     plan: 'trial',
-    monthlyChalks: CHALK_PLANS.trial.chalks,
+    weeklyChalks: CHALK_PLANS.trial.chalksPerWeek,
+    chalkPeriodStart: start,
+    chalkWindow: 0,
     topUpChalks: 0,
     schoolId: null,
     openHolds: [],
@@ -222,34 +249,68 @@ export function emptyBilling(uid: string, startedAt: number, now: number): Teach
   };
 }
 
-/** Drop monthly chalks once the trial or paid period has ended. Top-ups stay. */
-export function expireMonthlyChalks(
+function includedChalksActive(record: TeacherBillingRecord, now: number): boolean {
+  if (record.plan === 'trial') return now < record.trialEndsAt;
+  if (record.plan === 'pro' || record.plan === 'max') return PAID_ACCESS.has(record.status);
+  return false;
+}
+
+/**
+ * Grant a fresh weekly allowance when 7 days have passed since the anchor.
+ * Unused chalks from the previous week are discarded. Top-ups are not touched.
+ */
+export function refreshWeeklyChalks(
   record: TeacherBillingRecord,
   now: number,
 ): TeacherBillingRecord {
-  const trialOver = record.plan === 'trial' && now >= record.trialEndsAt;
-  const periodOver = record.currentPeriodEnd !== null && now >= record.currentPeriodEnd;
-  if (!trialOver && !periodOver) return record;
-  if (record.monthlyChalks === 0) return record;
-  return { ...record, monthlyChalks: 0, updatedAt: now };
+  const anchor = record.chalkPeriodStart || record.trialStartedAt;
+  const index = chalkWindowIndex(anchor, now);
+  if (!includedChalksActive(record, now)) {
+    if (record.weeklyChalks === 0 && record.chalkWindow === index) return record;
+    return {
+      ...record,
+      chalkPeriodStart: anchor,
+      chalkWindow: index,
+      weeklyChalks: 0,
+      updatedAt: now,
+    };
+  }
+  if (index === record.chalkWindow) return record;
+  return {
+    ...record,
+    chalkPeriodStart: anchor,
+    chalkWindow: index,
+    weeklyChalks: weeklyChalksFor(record.plan),
+    updatedAt: now,
+  };
+}
+
+export function refreshSchoolPool(pool: SchoolChalkPool, now: number): SchoolChalkPool {
+  if (pool.status === 'pilot' && pool.pilotEndsAt !== null && now >= pool.pilotEndsAt) {
+    return { ...pool, status: 'cancelled', poolChalks: 0 };
+  }
+  if (pool.status === 'cancelled' || pool.chalkPeriodStart === null) return pool;
+  const index = chalkWindowIndex(pool.chalkPeriodStart, now);
+  if (index === pool.chalkWindow) return pool;
+  return { ...pool, chalkWindow: index, poolChalks: schoolPoolAllowance(pool.seatCount) };
 }
 
 export function chalksRemaining(
   record: TeacherBillingRecord,
   school?: SchoolChalkPool | null,
 ): number {
-  const personal = record.monthlyChalks + record.topUpChalks;
+  const personal = record.weeklyChalks + record.topUpChalks;
   if (!school || school.status === 'cancelled') return personal;
   return school.poolChalks + record.topUpChalks;
 }
 
 export function isTeacherEntitled(record: TeacherBillingRecord, now: number): boolean {
-  const current = expireMonthlyChalks(record, now);
+  const current = refreshWeeklyChalks(record, now);
   if (now < current.trialEndsAt && current.plan === 'trial') return true;
   if (PAID_ACCESS.has(current.status) && current.plan !== 'trial' && current.plan !== 'none') {
     return true;
   }
-  return current.monthlyChalks + current.topUpChalks > 0;
+  return current.weeklyChalks + current.topUpChalks > 0;
 }
 
 export function canStartLesson(
@@ -258,8 +319,9 @@ export function canStartLesson(
   options: { ownKey?: boolean; school?: SchoolChalkPool | null } = {},
 ): boolean {
   if (options.ownKey && !CHALK_PLANS.ownKeyConsumesChalk) return true;
-  const current = expireMonthlyChalks(record, now);
-  return chalksRemaining(current, options.school) > 0;
+  const current = refreshWeeklyChalks(record, now);
+  const school = options.school ? refreshSchoolPool(options.school, now) : null;
+  return chalksRemaining(current, school) > 0;
 }
 
 export function trialDaysLeft(record: TeacherBillingRecord, now: number): number {
@@ -282,10 +344,25 @@ export function formatIndiaDate(ms: number): string {
   }).format(new Date(ms));
 }
 
-export function chalksLeftLabel(count: number): string {
-  if (count <= 0) return 'Out of chalks';
-  if (count === 1) return 'You have 1 chalk left';
-  return `You have ${count} chalks left`;
+export function formatChalkRefresh(ms: number): string {
+  const parts = new Intl.DateTimeFormat('en-IN', {
+    weekday: 'short',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+    timeZone: 'Asia/Kolkata',
+  }).formatToParts(new Date(ms));
+  const pick = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((part) => part.type === type)?.value ?? '';
+  const minute = pick('minute').padStart(2, '0');
+  return `${pick('weekday')} ${pick('hour')}:${minute} ${pick('dayPeriod').toUpperCase()}`;
+}
+
+export function chalksLeftLabel(count: number, refreshAt: number | null = null): string {
+  const refill = refreshAt ? `, refills ${formatChalkRefresh(refreshAt)}` : '';
+  if (count <= 0) return refreshAt ? `Out of chalks${refill}` : 'Out of chalks';
+  const noun = count === 1 ? 'chalk' : 'chalks';
+  return `${count} ${noun} left${refill}`;
 }
 
 export function subscriptionStartAtUnix(trialEnd: number, now: number): number | null {
@@ -293,17 +370,24 @@ export function subscriptionStartAtUnix(trialEnd: number, now: number): number |
   return Math.floor(trialEnd / 1000);
 }
 
-export function refillMonthlyChalks(
+/**
+ * Remember the paid plan and its billing date. The weekly chalk window is
+ * anchored once, when the plan starts. Later renewal webhooks do not refill it.
+ */
+export function anchorPaidPlan(
   record: TeacherBillingRecord,
   plan: Exclude<TeacherPlanId, 'trial' | 'none' | 'school'>,
   periodEnd: number | null,
   now: number,
 ): TeacherBillingRecord {
+  const sameWindow = record.plan === plan && record.chalkPeriodStart > 0;
   return {
     ...record,
     plan,
     status: 'active',
-    monthlyChalks: monthlyChalksFor(plan),
+    weeklyChalks: sameWindow ? record.weeklyChalks : weeklyChalksFor(plan),
+    chalkPeriodStart: sameWindow ? record.chalkPeriodStart : now,
+    chalkWindow: sameWindow ? record.chalkWindow : 0,
     currentPeriodEnd: periodEnd,
     lastEventAt: now,
     updatedAt: now,
@@ -319,7 +403,7 @@ export function addTopUpChalks(
 }
 
 function releaseHold(record: TeacherBillingRecord, hold: ChalkHold): TeacherBillingRecord {
-  if (hold.source === 'monthly') return { ...record, monthlyChalks: record.monthlyChalks + 1 };
+  if (hold.source === 'weekly') return { ...record, weeklyChalks: record.weeklyChalks + 1 };
   if (hold.source === 'topup') return { ...record, topUpChalks: record.topUpChalks + 1 };
   return record;
 }
@@ -338,10 +422,10 @@ export function reserveChalk(
   holdId: string,
   now: number,
 ): ChalkReservation {
-  const fresh = expireMonthlyChalks(record, now);
+  const fresh = refreshWeeklyChalks(record, now);
   const expiredHolds = fresh.openHolds.filter((hold) => now - hold.at >= CHALK_HOLD_TTL_MS);
   let current = fresh;
-  let pool = school;
+  let pool = school ? refreshSchoolPool(school, now) : null;
   for (const hold of expiredHolds) {
     current = releaseHold(current, hold);
     if (hold.source === 'school' && pool) pool = { ...pool, poolChalks: pool.poolChalks + 1 };
@@ -355,9 +439,9 @@ export function reserveChalk(
   if (pool && pool.status !== 'cancelled' && pool.poolChalks > 0) {
     source = 'school';
     pool = { ...pool, poolChalks: pool.poolChalks - 1 };
-  } else if (current.monthlyChalks > 0) {
-    source = 'monthly';
-    current = { ...current, monthlyChalks: current.monthlyChalks - 1 };
+  } else if (current.weeklyChalks > 0) {
+    source = 'weekly';
+    current = { ...current, weeklyChalks: current.weeklyChalks - 1 };
   } else if (current.topUpChalks > 0) {
     source = 'topup';
     current = { ...current, topUpChalks: current.topUpChalks - 1 };
@@ -401,7 +485,7 @@ export function recordSchoolUsage(
 }
 
 function statusLabel(record: TeacherBillingRecord, phase: TeacherBillingView['phase']): string {
-  if (record.monthlyChalks + record.topUpChalks <= 0 && phase !== 'active') return 'Out of chalks';
+  if (record.weeklyChalks + record.topUpChalks <= 0 && phase !== 'active') return 'Out of chalks';
   if (phase === 'trial') return 'Free trial';
   if (record.plan === 'pro') return 'Pro';
   if (record.plan === 'max') return 'Max';
@@ -427,14 +511,21 @@ export function toTeacherBillingView(
   now: number,
   school?: SchoolChalkPool | null,
 ): TeacherBillingView {
-  const current = expireMonthlyChalks(record, now);
+  const current = refreshWeeklyChalks(record, now);
+  const refreshedSchool = school ? refreshSchoolPool(school, now) : null;
   const entitled = isTeacherEntitled(current, now);
   const paid =
     PAID_ACCESS.has(current.status) && current.plan !== 'trial' && current.plan !== 'none';
   const phase: TeacherBillingView['phase'] =
     paid || current.plan === 'school' ? 'active' : entitled ? 'trial' : 'expired';
   const daysLeft = trialDaysLeft(current, now);
-  const chalksLeft = chalksRemaining(current, school);
+  const chalksLeft = chalksRemaining(current, refreshedSchool);
+  const refreshAnchor = refreshedSchool?.chalkPeriodStart ?? current.chalkPeriodStart;
+  const refreshAt =
+    refreshAnchor &&
+    (current.plan !== 'trial' || nextChalkRefreshAt(refreshAnchor, now) < current.trialEndsAt)
+      ? nextChalkRefreshAt(refreshAnchor, now)
+      : null;
   const priceLabel = formatInr(CHALK_PLANS.pro.pricePaise);
   const nextBillingDate = current.currentPeriodEnd
     ? formatIndiaDate(current.currentPeriodEnd)
@@ -443,7 +534,7 @@ export function toTeacherBillingView(
   const dayWord = daysLeft === 1 ? 'day' : 'days';
   const chalkWord = chalksLeft === 1 ? 'chalk' : 'chalks';
   let headline = `Free trial · ${daysLeft} ${dayWord} left`;
-  let detail = `${chalksLeft} ${chalkWord} included. Then choose Pro or Max. No card is needed during the trial.`;
+  let detail = `${chalksLeftLabel(chalksLeft, refreshAt)}. Then choose Pro or Max. No card is needed during the trial.`;
   if (chalksLeft <= 0 && phase !== 'active') {
     headline = 'Out of chalks';
     detail =
@@ -454,21 +545,25 @@ export function toTeacherBillingView(
       ? 'Cancellation scheduled'
       : `${planName} · ${chalksLeft} ${chalkWord} left`;
     detail = current.cancelAtPeriodEnd
-      ? `You can keep generating lessons until ${nextBillingDate ?? 'the end of this period'}. Monthly chalks do not roll over.`
+      ? `You can keep generating lessons until ${nextBillingDate ?? 'the end of this period'}. Unused weekly chalks do not roll over.`
       : nextBillingDate
-        ? `Next bill on ${nextBillingDate}. Unused monthly chalks do not roll over. Top-up chalks stay until you use them.`
-        : 'Unused monthly chalks do not roll over. Top-up chalks stay until you use them.';
+        ? `Next bill on ${nextBillingDate}. Unused weekly chalks do not roll over. Top-up chalks stay until you use them.`
+        : 'Unused weekly chalks do not roll over. Top-up chalks stay until you use them.';
   }
   return {
     entitled,
-    canStartLesson: canStartLesson(current, now, { school }),
+    canStartLesson: canStartLesson(current, now, { school: refreshedSchool }),
     phase,
     plan: current.plan,
     daysLeft,
     chalksLeft,
-    chalksLabel: chalksLeftLabel(chalksLeft),
-    monthlyChalks: current.monthlyChalks,
+    chalksLabel: chalksLeftLabel(chalksLeft, refreshAt),
+    weeklyChalks:
+      refreshedSchool && refreshedSchool.status !== 'cancelled'
+        ? refreshedSchool.poolChalks
+        : current.weeklyChalks,
     topUpChalks: current.topUpChalks,
+    nextRefreshAt: refreshAt,
     priceLabel,
     statusLabel: statusLabel(current, phase),
     headline,
@@ -581,10 +676,10 @@ export function applyParsedBillingEvent(
     (event.status === 'active' || event.name === 'subscription.charged') &&
     (plan === 'pro' || plan === 'max')
   ) {
-    next = refillMonthlyChalks(next, plan, next.currentPeriodEnd, event.createdAtMs);
+    next = anchorPaidPlan(next, plan, next.currentPeriodEnd, event.createdAtMs);
   }
   if (event.status === 'past_due' || event.status === 'halted' || event.status === 'cancelled') {
-    next = { ...next, monthlyChalks: 0 };
+    next = { ...next, weeklyChalks: 0 };
   }
   return next;
 }
