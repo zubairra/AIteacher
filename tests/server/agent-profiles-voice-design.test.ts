@@ -1,4 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+vi.mock('@/lib/server/auth/generation-access', () => ({
+  requireTeacherGeneration: async () => null,
+  generationSetupResponse: () => null,
+}));
 import { NextRequest } from 'next/server';
 import { QWEN_TTS_VOICE_CLONE_MODEL } from '@/lib/audio/constants';
 

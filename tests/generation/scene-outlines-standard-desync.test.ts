@@ -1,5 +1,10 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
+vi.mock('@/lib/server/auth/generation-access', () => ({
+  requireTeacherGeneration: async () => null,
+  generationSetupResponse: () => null,
+}));
+
 import type { ImageMapping, PdfImage } from '@/lib/types/generation';
 
 const streamLLMMock = vi.hoisted(() => vi.fn());

@@ -25,6 +25,7 @@ import {
 } from '@/lib/server/provider-config';
 import { createLogger } from '@/lib/logger';
 import { apiError, apiSuccess } from '@/lib/server/api-response';
+import { requireTeacherGeneration } from '@/lib/server/auth/generation-access';
 import { findUnsafeNetworkTargetError, validatePublicUrlForSSRF } from '@/lib/server/ssrf-guard';
 import { normalizeVoiceDesign } from '@/lib/audio/voice-design';
 import {
@@ -62,6 +63,8 @@ function childSignal(
 }
 
 export async function POST(req: NextRequest) {
+  const denied = await requireTeacherGeneration(req);
+  if (denied) return denied;
   let providerId: string | undefined;
   let voiceId: string | undefined;
   const deadline = new AbortController();

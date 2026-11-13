@@ -1,4 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+vi.mock('@/lib/server/auth/generation-access', () => ({
+  requireTeacherGeneration: async () => null,
+  generationSetupResponse: () => null,
+}));
 import { NextRequest } from 'next/server';
 
 import { POST } from '@/app/api/generate/voice/route';

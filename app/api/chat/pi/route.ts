@@ -23,7 +23,9 @@ import {
 } from '@/lib/chat/pi/config';
 import { runPiDirectorLoop } from '@/lib/chat/pi/director-loop';
 import type { SendEvent } from '@/lib/chat/pi/types';
-import { resolveModel } from '@/lib/server/resolve-model';
+import { resolveModel, resolveSignedInTeacherModel } from '@/lib/server/resolve-model';
+import { generationSetupResponse } from '@/lib/server/auth/generation-access';
+import { resolveTeacherSessionRequest } from '@/lib/server/auth/session';
 import { parseUserStageRoutes } from '@/lib/server/model-routes';
 import { apiError } from '@/lib/server/api-response';
 import type { ThinkingConfig } from '@/lib/types/provider';
@@ -112,25 +114,29 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const teacher = await resolveTeacherSessionRequest(req);
     const {
       model: languageModel,
       apiKey: resolvedApiKey,
       providerId,
       modelInfo,
       thinkingConfig: resolvedThinkingConfig,
-    } = await resolveModel({
-      modelString: body.model,
-      stage: 'chat-adapter',
-      // Honor the classroom-interaction per-stage override the client sends in
-      // `x-model-routes`. A routed stage brings its own key and base URL; otherwise the body credentials are used (never x-* headers).
-      userRoutes: parseUserStageRoutes(req.headers.get('x-model-routes')),
-      apiKey: body.apiKey,
-      baseUrl: body.baseUrl,
-      providerType: body.providerType,
-      // Let resolveModel arbitrate thinking too: a routed chat-adapter's thinking
-      // wins, an unrouted one honors this client thinking (see resolve-model.ts).
-      thinkingConfig: body.thinkingConfig ?? body.thinking,
-    });
+    } = teacher
+      ? await resolveSignedInTeacherModel(teacher.id, body.thinkingConfig ?? body.thinking)
+      : await resolveModel({
+          modelString: body.model,
+          stage: 'chat-adapter',
+          // Honor the classroom-interaction per-stage override the client sends in
+          // `x-model-routes`. A routed stage brings its own key and base URL; otherwise the body credentials are used (never x-* headers).
+          userRoutes: parseUserStageRoutes(req.headers.get('x-model-routes')),
+          apiKey: body.apiKey,
+          baseUrl: body.baseUrl,
+          providerType: body.providerType,
+          // Let resolveModel arbitrate thinking too: a routed chat-adapter's thinking
+          // wins, an unrouted one honors this client thinking (see resolve-model.ts).
+          thinkingConfig: body.thinkingConfig ?? body.thinking,
+          allowManagedServerKey: false,
+        });
 
     if (isProviderKeyRequired(providerId) && !resolvedApiKey) {
       return apiError('MISSING_API_KEY', 401, 'API Key is required');
@@ -319,6 +325,8 @@ export async function POST(req: NextRequest) {
       },
     });
   } catch (error) {
+    const setup = generationSetupResponse(error);
+    if (setup) return setup;
     log.error(
       `Pi chat request failed [model=${chatModel ?? 'unknown'}, messages=${chatMessageCount ?? 0}]:`,
       error,

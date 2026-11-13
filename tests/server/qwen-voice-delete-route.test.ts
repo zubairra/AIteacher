@@ -1,4 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+vi.mock('@/lib/server/auth/generation-access', () => ({
+  requireTeacherGeneration: async () => null,
+  generationSetupResponse: () => null,
+}));
 import { NextRequest } from 'next/server';
 
 // The Qwen voice-clone adapter now issues requests through undici's fetch with

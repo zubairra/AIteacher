@@ -75,6 +75,7 @@ describe('POST /api/verify-model', () => {
       apiKey: 'tp-test',
       baseUrl: 'https://token-plan-cn.xiaomimimo.com/v1',
       providerType: 'openai',
+      allowManagedServerKey: false,
     });
     expect(mocks.callLLM).toHaveBeenCalledWith(
       {

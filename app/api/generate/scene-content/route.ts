@@ -25,6 +25,10 @@ import { createLogger } from '@/lib/logger';
 import { apiError, apiSuccess } from '@/lib/server/api-response';
 import { llmApiError } from '@/lib/server/llm-error-response';
 import { resolveModelFromRequest } from '@/lib/server/resolve-model';
+import {
+  generationSetupResponse,
+  requireTeacherGeneration,
+} from '@/lib/server/auth/generation-access';
 import { resolveVocationalActive } from '@/lib/config/feature-flags';
 import { MAX_VISION_IMAGES } from '@/lib/constants/generation';
 import { sortDocumentImagesForVision } from '@/lib/document/bundle';
@@ -57,6 +61,8 @@ const VISION_RESOLUTION_BUDGET_MS = 15_000;
 const MAX_CONSECUTIVE_UNRESOLVABLE_VISION_IMAGES = 3;
 
 export async function POST(req: NextRequest) {
+  const denied = await requireTeacherGeneration(req);
+  if (denied) return denied;
   let outlineTitle: string | undefined;
   let resolvedModelString: string | undefined;
   try {
@@ -354,6 +360,8 @@ export async function POST(req: NextRequest) {
 
     return apiSuccess({ content, effectiveOutline });
   } catch (error) {
+    const setup = generationSetupResponse(error);
+    if (setup) return setup;
     log.error(
       `Scene content generation failed [scene="${outlineTitle ?? 'unknown'}", model=${resolvedModelString ?? 'unknown'}]:`,
       error,

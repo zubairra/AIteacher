@@ -59,7 +59,7 @@ import { isAbortError } from './generation-retry.js';
 import { generatePBLV2ProjectSingleCall } from './pbl/planner-single-call.js';
 import { PlannerV2Error } from './pbl/planner-core.js';
 import type { PBLPlannerV2Input } from './pbl/types.js';
-import { buildTeacherLedPromptContext } from './teacher-mode.js';
+import { buildTeacherLedPromptContext, isTeacherLedRequirements } from './teacher-mode.js';
 
 function isGeneratedMediaPlaceholder(value: string | undefined): value is string {
   return !!value && /^gen_(img|vid)_[\w-]+$/i.test(value);
@@ -125,7 +125,13 @@ export interface SceneActionsOptions {
   agents?: AgentInfo[];
   userProfile?: string;
   languageDirective?: string;
+  userRequirements?: UserRequirements;
   logger?: GenerationLogger;
+}
+
+function teacherPromptFlags(requirements: UserRequirements | undefined) {
+  const teacherMode = isTeacherLedRequirements(requirements);
+  return { teacherMode, learnerCourse: !teacherMode };
 }
 
 // ==================== Backward Compatibility Helpers ====================
@@ -888,6 +894,7 @@ async function generateQuizContent(
     difficulty: quizConfig.difficulty,
     questionTypes: quizConfig.questionTypes.join(', '),
     languageDirective: languageDirective || '',
+    ...teacherPromptFlags(userRequirements),
   });
 
   if (!prompts) {
@@ -1727,7 +1734,8 @@ export async function generateSceneActions(
   aiCall: AICallFn,
   options: SceneActionsOptions = {},
 ): Promise<Action[]> {
-  const { ctx, agents, userProfile, languageDirective } = options;
+  const { ctx, agents, userProfile, languageDirective, userRequirements } = options;
+  const promptFlags = teacherPromptFlags(userRequirements);
   const log = options.logger ?? noopGenerationLogger;
   const agentsText = formatAgentsForPrompt(agents);
 
@@ -1752,6 +1760,7 @@ export async function generateSceneActions(
       agents: agentsText,
       userProfile: userProfile || '',
       languageDirective: languageDirective || '',
+      ...promptFlags,
     });
 
     if (!prompts) {
@@ -1777,6 +1786,7 @@ export async function generateSceneActions(
       title: outline.title,
       keyPoints: (outline.keyPoints || []).map((p, i) => `${i + 1}. ${p}`).join('\n'),
       description: outline.description,
+      ...promptFlags,
       questions: questionsText,
       courseContext: buildCourseContext(ctx),
       agents: agentsText,

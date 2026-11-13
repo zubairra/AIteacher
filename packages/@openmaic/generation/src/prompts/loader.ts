@@ -17,6 +17,12 @@ const PROMPT_VARIABLE_DEFAULTS = {
     projectSummary:
       '(No generated milestones are available; introduce the project topic without inventing any.)',
   },
+  // Learner-course instructions stay on unless a caller explicitly turns them
+  // off for teacher-led generation. `false` is a real override, not "missing".
+  'requirements-to-outlines': { learnerCourse: true },
+  'slide-actions': { learnerCourse: true },
+  'quiz-content': { learnerCourse: true },
+  'quiz-actions': { learnerCourse: true },
 } satisfies PromptVariableDefaults;
 
 function isMissingFileError(error: unknown): boolean {

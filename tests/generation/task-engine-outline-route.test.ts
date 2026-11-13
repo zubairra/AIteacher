@@ -1,5 +1,10 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
+vi.mock('@/lib/server/auth/generation-access', () => ({
+  requireTeacherGeneration: async () => null,
+  generationSetupResponse: () => null,
+}));
+
 const streamLLMMock = vi.hoisted(() => vi.fn());
 const resolveModelFromRequestMock = vi.hoisted(() => vi.fn());
 const VOCATIONAL_FLAG = 'OPENMAIC_ENABLE_VOCATIONAL';
