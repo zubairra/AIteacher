@@ -109,6 +109,23 @@ describe('Firestore provider credential vault', () => {
     });
   });
 
+  test('updates verification status without rewriting the key', async () => {
+    const vault = await import('@/lib/server/auth/credential-vault');
+    await vault.saveTeacherProviderCredential({
+      userId: 'teacher-a',
+      providerId: 'qwen',
+      modelId: 'qwen3.7-plus',
+      apiKey: 'secret-provider-key-A92F',
+      verificationStatus: 'unverified',
+    });
+    const before = documents.get('users/teacher-a/providerCredentials/qwen')!.ciphertext;
+    await vault.setTeacherProviderVerificationStatus('teacher-a', 'qwen', 'verified');
+    const after = documents.get('users/teacher-a/providerCredentials/qwen')!;
+    expect(after.ciphertext).toBe(before);
+    expect(after.verificationStatus).toBe('verified');
+    expect(JSON.stringify(after)).not.toContain('secret-provider-key-A92F');
+  });
+
   test('fails safely under the wrong encryption key', async () => {
     const vault = await import('@/lib/server/auth/credential-vault');
     await vault.saveTeacherProviderCredential({

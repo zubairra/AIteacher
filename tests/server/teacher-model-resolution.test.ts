@@ -38,6 +38,9 @@ describe('signed-in teacher model resolution', () => {
     delete process.env.OPENROUTER_MODELS;
     delete process.env.MODEL_ROUTES;
     delete process.env.DEFAULT_MODEL;
+    delete process.env.DASHSCOPE_BASE_URL;
+    delete process.env.FIREBASE_AUTH_EMULATOR_HOST;
+    delete process.env.FIRESTORE_EMULATOR_HOST;
   });
 
   it('sends a saved OpenRouter model to OpenRouter with the teacher key', async () => {
@@ -62,6 +65,24 @@ describe('signed-in teacher model resolution', () => {
       baseUrl: 'https://openrouter.ai/api/v1',
     });
     expect(mocks.getModelCalls[0]?.apiKey).not.toBe(OWNER_KEY);
+  });
+
+  it('sends a saved Qwen key to an operator DashScope override', async () => {
+    process.env.DASHSCOPE_BASE_URL = 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1';
+    mocks.credential = {
+      providerId: 'qwen',
+      modelId: 'qwen3.7-plus',
+      apiKey: 'sk-fake-qwen-test-A92F',
+    };
+    const { resolveSignedInTeacherModel } = await import('@/lib/server/resolve-model');
+    const resolved = await resolveSignedInTeacherModel('teacher-1');
+    expect(resolved.providerId).toBe('qwen');
+    expect(resolved.apiKey).toBe('sk-fake-qwen-test-A92F');
+    expect(mocks.getModelCalls[0]).toMatchObject({
+      providerId: 'qwen',
+      modelId: 'qwen3.7-plus',
+      baseUrl: 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1',
+    });
   });
 
   it('falls back to the server OpenRouter key when the teacher has not saved one', async () => {

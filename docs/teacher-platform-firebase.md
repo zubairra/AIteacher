@@ -1,5 +1,23 @@
 # SmartBoard AI Firebase architecture
 
+Owner setup for project `smartboard-ai`, including the variables still missing from `.env`, is in [SETUP-FIREBASE.md](./SETUP-FIREBASE.md). Next.js reads `.env` and `.env.local`.
+
+## Roadmap status
+
+| Phase | What the roadmap asked for                                             | What the code does now                                                                                                                                                                                                                                                                 |
+| ----- | ---------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0     | Audit the OpenMAIC foundation and decide what to keep                  | Recorded in `docs/teacher-platform-audit.md`. No product behavior change. The foundation is reused.                                                                                                                                                                                    |
+| 1     | Teacher shell: dashboard, create-lesson form, lesson library           | `/` is the teacher dashboard. `/lessons`, `/lessons/new`, and `/lessons/[id]/edit` exist. The old workbench stays at `/advanced`.                                                                                                                                                      |
+| 2     | Teacher-led generation from subject, grade, topic, duration, and style | `TeacherLessonRequest` validates the brief and compiles it into the existing generator. Teacher mode skips roster and narration generation.                                                                                                                                            |
+| 3     | Smart-board Teach Mode                                                 | `/lessons/[id]/teach` presents the existing scene renderers with large controls, fullscreen, notes, and an annotation overlay. Annotations stay on the device for the session.                                                                                                         |
+| 4     | Native activities and gamification                                     | Seven validated activity types render in Teach Mode: multiple choice, true/false, match pairs, sort, ordering, spin wheel, and team battle. Scores stay in the session.                                                                                                                |
+| 4.5   | Google sign-in and cloud persistence for lessons and provider keys     | This change. Google sign-in creates the HTTP-only `smartboard_firebase_session` cookie. Lessons are stored in Firestore under the signed-in uid. Provider keys, including Qwen/DashScope, are encrypted on the server. The browser receives a masked suffix and a verification status. |
+| 5     | Live AI assistant during teaching                                      | Not built. The extension points in `docs/teacher-platform-phase-4.md` still apply. The assistant must read the teacher from `resolveTeacherSessionRequest` and the saved key from `resolveTeacherProviderCredential`.                                                                  |
+
+Student accounts, join codes, and phone numbers are outside V1. They are not part of this Firebase path.
+
+`DATABASE_URL` remains only for the optional OpenMAIC agent runtime, asset store, and HTTP document API. Teacher sign-in does not open Postgres. `POST /api/auth/sign-up` returns 410. When `NEXT_PUBLIC_FIREBASE_PROJECT_ID` is set, lesson reads and writes use `FirestoreDocumentStore`. The HTTP/Postgres document store is selected only when that project id is absent and `NEXT_PUBLIC_PERSISTENCE=1`. `instrumentation.ts` still connects to Postgres when `DATABASE_URL` is set, for those upstream features. `teacherOwnerId` prefixes a Firebase uid as `firebase:{uid}` so an optional agent-runtime row does not collide with an anonymous owner.
+
 ## Scope
 
 Teacher identity and teacher-owned cloud data use Firebase. OpenMAIC's optional PostgreSQL persistence remains available for unrelated upstream runtime and asset features, but `DATABASE_URL` is not required for the SmartBoard teacher workflow.
@@ -76,7 +94,8 @@ Local `pnpm dev` can use the cloud project and Google Sign-In. For deterministic
 - Firebase Console configuration is required before live Google Sign-In can be manually verified.
 - Existing device-local lessons require an explicit future import flow.
 - Media migration to Firebase Storage is intentionally out of scope.
-- A single batch supports up to 500 writes; exceptionally large lessons should be chunked in a future hardening pass.
+- Lesson writes are split into batches of at most 500 operations.
+- Provider keys can be checked with Test connection. A saved Qwen key uses the DashScope compatible-mode host unless `DASHSCOPE_BASE_URL` is set on the server.
 
 ## Phase 5 integration
 

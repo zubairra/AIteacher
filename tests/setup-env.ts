@@ -1,7 +1,7 @@
 /**
  * Unit-test environment bootstrap.
  *
- * The suite runs hermetic by default: `.env.local` is NOT loaded.
+ * The suite runs hermetic by default: `.env` and `.env.local` are NOT loaded.
  *
  * It used to be loaded unconditionally ("so API keys are available"), which made
  * every test see whatever the developer happened to have configured locally.
@@ -21,9 +21,16 @@ import { readFileSync } from 'fs';
 import { resolve } from 'path';
 
 if (process.env.TEST_LOAD_LOCAL_ENV === '1') {
-  const envPath = resolve(__dirname, '..', '.env.local');
-  try {
-    const content = readFileSync(envPath, 'utf-8');
+  const shellKeys = new Set(Object.keys(process.env));
+  // `.env.local` overrides `.env`. Variables already exported in the shell win.
+  for (const filename of ['.env', '.env.local']) {
+    const envPath = resolve(__dirname, '..', filename);
+    let content: string;
+    try {
+      content = readFileSync(envPath, 'utf-8');
+    } catch {
+      continue;
+    }
     for (const line of content.split('\n')) {
       const trimmed = line.trim();
       if (!trimmed || trimmed.startsWith('#')) continue;
@@ -31,11 +38,8 @@ if (process.env.TEST_LOAD_LOCAL_ENV === '1') {
       if (eqIdx < 0) continue;
       const key = trimmed.slice(0, eqIdx).trim();
       const value = trimmed.slice(eqIdx + 1).trim();
-      if (!process.env[key]) {
-        process.env[key] = value;
-      }
+      if (shellKeys.has(key)) continue;
+      process.env[key] = value;
     }
-  } catch {
-    // .env.local not found, skip
   }
 }
