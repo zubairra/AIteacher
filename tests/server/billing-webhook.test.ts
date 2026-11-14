@@ -1,5 +1,5 @@
 import { createHmac } from 'node:crypto';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { handleRazorpayWebhook, type BillingWebhookStore } from '@/lib/server/billing/webhook';
 import {
@@ -25,8 +25,28 @@ function signedRequest(payload: unknown, eventId = 'evt_test_1234') {
 }
 
 describe('Razorpay webhook', () => {
+  beforeEach(() => {
+    vi.stubEnv('BILLING_ENABLED', 'true');
+  });
+
   afterEach(() => {
     delete process.env.RAZORPAY_WEBHOOK_SECRET;
+    vi.unstubAllEnvs();
+  });
+
+  it('stays inert while billing is off and does not need Razorpay', async () => {
+    vi.stubEnv('BILLING_ENABLED', '');
+    delete process.env.RAZORPAY_WEBHOOK_SECRET;
+    const apply = vi.fn();
+    const resolveUid = vi.fn();
+    const response = await handleRazorpayWebhook(
+      signedRequest({ event: 'subscription.activated', payload: {} }),
+      { resolveUid, apply },
+    );
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ ok: true, result: 'disabled' });
+    expect(apply).not.toHaveBeenCalled();
+    expect(resolveUid).not.toHaveBeenCalled();
   });
 
   it('rejects a missing or bad signature before it touches billing', async () => {

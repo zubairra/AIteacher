@@ -34,6 +34,11 @@ function appEnv() {
   env.ALLOW_LOCAL_NETWORKS = 'true';
   env.FIREBASE_E2E_BASE_URL = `http://127.0.0.1:${appPort}`;
   env.FIREBASE_E2E_HEADED = process.env.FIREBASE_E2E_HEADED || '0';
+  // The product default is free. This suite turns billing on so the trial,
+  // Plans page, chalk counter, and 402 gate can be checked. Lesson creation
+  // and the whiteboard toggle still run; they do not depend on this switch.
+  env.BILLING_ENABLED = 'true';
+  env.NEXT_PUBLIC_BILLING_ENABLED = 'true';
   return env;
 }
 

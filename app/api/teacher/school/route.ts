@@ -1,4 +1,5 @@
 import { apiError } from '@/lib/server/api-response';
+import { billingOffResponse } from '@/lib/server/billing/free-mode';
 import { isSameOriginMutation } from '@/lib/server/auth/request-security';
 import { resolveTeacherSessionRequest } from '@/lib/server/auth/session';
 import {
@@ -10,6 +11,8 @@ import {
 export const runtime = 'nodejs';
 
 export async function GET(request: Request) {
+  const paused = billingOffResponse();
+  if (paused) return paused;
   const user = await resolveTeacherSessionRequest(request);
   if (!user) return apiError('UNAUTHENTICATED', 401, 'Sign in to manage a school.');
   const school = await readSchoolForAdmin(user.id);
@@ -18,6 +21,8 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const paused = billingOffResponse();
+  if (paused) return paused;
   if (!isSameOriginMutation(request)) {
     return apiError('FORBIDDEN', 403, 'This request was not accepted.');
   }

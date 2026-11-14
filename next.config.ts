@@ -7,6 +7,13 @@ const nextConfig: NextConfig = {
     // Pin even the unset/default value in both client and server bundles.
     // A runtime-only override must not disable the route the built client uses.
     NEXT_PUBLIC_PI_CHAT_ENABLED: process.env.NEXT_PUBLIC_PI_CHAT_ENABLED ?? '',
+    // Browser mirror of the teacher billing switch. Server pages read
+    // BILLING_ENABLED at request time and pass that into the UI, so a restart
+    // shows or hides pricing without a rebuild. This copy keeps a client
+    // bundle that reads the public name aligned with the server flag that
+    // was present at build.
+    NEXT_PUBLIC_BILLING_ENABLED:
+      process.env.NEXT_PUBLIC_BILLING_ENABLED ?? process.env.BILLING_ENABLED ?? '',
   },
   output: process.env.VERCEL ? undefined : 'standalone',
   outputFileTracingIncludes: {

@@ -43,9 +43,11 @@ Do not set `FIREBASE_AUTH_EMULATOR_HOST` or `FIRESTORE_EMULATOR_HOST` for real s
 
 ## Teacher subscription (India)
 
-A 15-day free trial starts at the teacher's first Google sign-in, with 5 chalks each week. One chalk makes one new AI lesson. Pro and Max are billed monthly and School yearly, but included chalks refill every 7 days and do not roll over. Top-up chalks stay until they are used. The steps to create the test-mode keys, the three plans, and the webhook, and the KYC required before live mode, are in [SETUP-RAZORPAY.md](./SETUP-RAZORPAY.md).
+Billing is off until you set `BILLING_ENABLED=true`. Teachers generate lessons for free, and Razorpay keys are not required to start or build the app. While it is off, `FREE_LESSON_DAILY_CAP` (default 100, `0` for none) limits new lessons per teacher per day in that server process.
 
-Add `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET`, `RAZORPAY_PLAN_ID`, and `NEXT_PUBLIC_RAZORPAY_KEY_ID` to the same `.env` file. The key secret and the webhook secret stay on the server.
+When you turn billing on, a 15-day free trial starts at the teacher's first Google sign-in, with 5 chalks each week. One chalk makes one new AI lesson. Pro and Max are billed monthly and School yearly, but included chalks refill every 7 days and do not roll over. Top-up chalks stay until they are used. The steps to create the test-mode keys, the three plans, and the webhook, and the KYC required before live mode, are in [SETUP-RAZORPAY.md](./SETUP-RAZORPAY.md).
+
+Add `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET`, `RAZORPAY_PLAN_ID`, and `NEXT_PUBLIC_RAZORPAY_KEY_ID` to the same `.env` file only after billing is on. The key secret and the webhook secret stay on the server.
 
 ## Create the Firebase Admin service account
 

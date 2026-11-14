@@ -33,7 +33,7 @@ The browser signs in with the Firebase Web SDK and Google provider. It sends the
 - `users/{uid}/lessons/{lessonId}/scenes/{sceneId}`: one Scene per document, avoiding a single oversized lesson document.
 - `users/{uid}/settings/ai`: selected provider and model; server-only.
 - `users/{uid}/providerCredentials/{providerId}`: AES-256-GCM ciphertext and encryption metadata; server-only.
-- `users/{uid}/billing/subscription`: trial window and Razorpay subscription status. The browser may read it. Only the server may write it. Webhooks are the source of truth for paid status.
+- `users/{uid}/billing/subscription`: trial window and Razorpay subscription status. The browser may read it. Only the server may write it. Webhooks are the source of truth for paid status. Unused while `BILLING_ENABLED` is off.
 - `users/{uid}/billingEvents/{eventId}`: processed Razorpay event ids. Server-only.
 - `billingIndex/{subscriptionId}`: subscription id to teacher uid, so a webhook can find the teacher. Server-only.
 
@@ -65,7 +65,7 @@ Credential writes and reads use Firebase Admin only. The existing AES-256-GCM im
 
 ## Environment variables
 
-Public Firebase Web App configuration, plus the Razorpay Checkout key id:
+Public Firebase Web App configuration. Razorpay names are optional and unused until `BILLING_ENABLED=true` (see [SETUP-RAZORPAY.md](./SETUP-RAZORPAY.md)):
 
 - `NEXT_PUBLIC_FIREBASE_API_KEY`
 - `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`
@@ -74,7 +74,8 @@ Public Firebase Web App configuration, plus the Razorpay Checkout key id:
 - `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`
 - `NEXT_PUBLIC_FIREBASE_APP_ID`
 - `NEXT_PUBLIC_FIREBASE_USE_EMULATORS` (optional local tests)
-- `NEXT_PUBLIC_RAZORPAY_KEY_ID` (same value as `RAZORPAY_KEY_ID`)
+- `NEXT_PUBLIC_RAZORPAY_KEY_ID` (same value as `RAZORPAY_KEY_ID`, only after billing is on)
+- `NEXT_PUBLIC_BILLING_ENABLED` (browser mirror of `BILLING_ENABLED`; default off)
 
 Server-only configuration:
 
@@ -82,10 +83,12 @@ Server-only configuration:
 - `FIREBASE_CLIENT_EMAIL`
 - `FIREBASE_PRIVATE_KEY`
 - `APP_CREDENTIAL_ENCRYPTION_KEY`
-- `RAZORPAY_KEY_ID`
-- `RAZORPAY_KEY_SECRET`
-- `RAZORPAY_WEBHOOK_SECRET`
-- `RAZORPAY_PLAN_ID`
+- `BILLING_ENABLED` (`true` or `1` turns subscriptions on; default off)
+- `FREE_LESSON_DAILY_CAP` (optional, default 100 while billing is off; `0` removes the cap)
+- `RAZORPAY_KEY_ID` (only after billing is on)
+- `RAZORPAY_KEY_SECRET` (only after billing is on)
+- `RAZORPAY_WEBHOOK_SECRET` (only after billing is on)
+- `RAZORPAY_PLAN_ID` (only after billing is on)
 - `FIREBASE_AUTH_EMULATOR_HOST` (tests only)
 - `FIRESTORE_EMULATOR_HOST` (tests only)
 

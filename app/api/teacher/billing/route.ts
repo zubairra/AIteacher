@@ -1,4 +1,5 @@
 import { apiError } from '@/lib/server/api-response';
+import { billingOffResponse } from '@/lib/server/billing/free-mode';
 import { isSameOriginMutation } from '@/lib/server/auth/request-security';
 import { resolveTeacherSessionRequest } from '@/lib/server/auth/session';
 import {
@@ -29,6 +30,8 @@ async function teacher(request: Request) {
 }
 
 export async function GET(request: Request) {
+  const paused = billingOffResponse();
+  if (paused) return paused;
   const user = await resolveTeacherSessionRequest(request);
   if (!user) return apiError('UNAUTHENTICATED', 401, 'Sign in to manage billing.');
   try {
@@ -44,6 +47,8 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const paused = billingOffResponse();
+  if (paused) return paused;
   const gate = await teacher(request);
   if ('error' in gate && gate.error) return gate.error;
   const user = gate.user;

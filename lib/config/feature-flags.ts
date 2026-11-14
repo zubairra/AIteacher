@@ -158,3 +158,19 @@ export function isVideoExportEnabled(): boolean {
 export function isPptxImportEnabled(): boolean {
   return readBoolean(process.env.NEXT_PUBLIC_ENABLE_PPTX_IMPORT);
 }
+
+/**
+ * Teacher subscriptions, chalks, the trial, and Razorpay. Default OFF so the
+ * product can launch free. Only the exact strings "true" and "1" turn it on.
+ * Server routes and server-rendered teacher pages read this at request time.
+ * `NEXT_PUBLIC_BILLING_ENABLED` is the browser mirror for client code that
+ * cannot receive the server value as a prop. Set both to the same value.
+ */
+export function isBillingEnabled(): boolean {
+  return readBoolean(process.env.BILLING_ENABLED);
+}
+
+/** Browser mirror of {@link isBillingEnabled}. Inlined at build time. */
+export function isBillingUiEnabled(): boolean {
+  return readBoolean(process.env.NEXT_PUBLIC_BILLING_ENABLED);
+}

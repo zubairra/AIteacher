@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ArrowRight, BookOpen, Clock3, Loader2, Plus, Presentation } from 'lucide-react';
 import { listStages, type StageListItem } from '@/lib/utils/stage-storage';
 import { toTeacherLessonListItem, type TeacherLessonListItem } from '@/lib/teacher/lesson-list';
+import { isBillingUiEnabled } from '@/lib/config/feature-flags';
 import type { TeacherBillingView } from '@/lib/teacher/billing';
 import { Button } from '@/components/ui/button';
 import { TrialBanner } from './TrialBanner';
@@ -61,10 +62,14 @@ function LessonCard({ lesson }: { lesson: TeacherLessonListItem }) {
 export function TeacherDashboard({
   showAll = false,
   billing = null,
+  billingEnabled,
 }: {
   showAll?: boolean;
   billing?: TeacherBillingView | null;
+  /** Server value of BILLING_ENABLED. Falls back to the public mirror. */
+  billingEnabled?: boolean;
 }) {
+  const showBilling = billingEnabled ?? isBillingUiEnabled();
   const [stages, setStages] = useState<StageListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -93,7 +98,7 @@ export function TeacherDashboard({
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8 lg:py-14">
-      {billing ? <TrialBanner view={billing} /> : null}
+      {showBilling && billing ? <TrialBanner view={billing} /> : null}
       <section className="flex flex-col justify-between gap-6 rounded-3xl border border-violet-100 bg-white p-7 shadow-sm sm:flex-row sm:items-center lg:p-10 dark:border-violet-950 dark:bg-slate-900">
         <div className="max-w-2xl">
           <p className="text-sm font-semibold uppercase tracking-[0.18em] text-violet-600 dark:text-violet-300">
