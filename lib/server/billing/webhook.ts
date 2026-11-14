@@ -1,3 +1,4 @@
+import { isBillingEnabled } from '@/lib/config/feature-flags';
 import { razorpaySignatureMatches, webhookEventId } from '@/lib/server/billing/signature';
 import { razorpayWebhookSecret } from '@/lib/server/billing/subscription';
 import { applyBillingWebhook, resolveBillingUid } from '@/lib/server/billing/store';
@@ -22,6 +23,11 @@ export async function handleRazorpayWebhook(
   store: BillingWebhookStore,
   now = Date.now(),
 ): Promise<Response> {
+  if (!isBillingEnabled()) {
+    // Inert while subscriptions are off: nothing is applied, and Razorpay is
+    // not required. Checkout routes answer 404 instead.
+    return Response.json({ ok: true, result: 'disabled' });
+  }
   const secret = razorpayWebhookSecret();
   if (!secret) return new Response('Webhook is not configured', { status: 503 });
   const rawBody = await request.text();

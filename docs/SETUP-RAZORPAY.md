@@ -1,5 +1,22 @@
 # Razorpay teacher subscription
 
+## Free until you turn billing on
+
+SmartBoard launches free. `BILLING_ENABLED` defaults to off. Teachers can generate lessons with no chalk limit and no trial. The Plans page, its nav links, the chalks counter, the trial banner, out-of-chalks prompts, top-up buttons, and school billing stay hidden. A direct visit to Plans or School shows a short "free for now" note. The Razorpay webhook stays inert (`{ "result": "disabled" }`) and checkout answers 404, so no Razorpay keys are required for the app to start or build.
+
+To turn subscriptions on later, set both of these and restart the server:
+
+```bash
+BILLING_ENABLED=true
+NEXT_PUBLIC_BILLING_ENABLED=true
+```
+
+Only `true` and `1` count as on. The teacher pages follow `BILLING_ENABLED` after a restart. Set the public mirror to the same value before a production build so any browser code that reads it agrees. A build copies `BILLING_ENABLED` into `NEXT_PUBLIC_BILLING_ENABLED` when the public name is unset. Then follow the rest of this guide. With the switch on, the trial, chalks, Plans page, school admin, and webhook behave as described below. The pricing code is unchanged.
+
+While billing is off, one abuse guard remains. `FREE_LESSON_DAILY_CAP` defaults to 100 new lessons per teacher per UTC day, counted in that server process. Set it to `0` for no cap. It does not show an upgrade prompt, it does not spend chalks, and it does not apply once billing is on.
+
+## What billing does once it is on
+
 SmartBoard bills teachers in India only. A new teacher gets a 15-day free trial and 5 chalks a week at their first Google sign-in. The trial can cover three weekly grants (the start, day 7, and day 14), so the most they can spend is 15 chalks. Unused chalks from one week do not carry into the next. No card is collected for the trial. One chalk makes one new AI lesson. A lesson that fails does not spend a chalk. Included chalks refill every 7 days from the plan start and do not roll over. The Pro and Max bills stay monthly, and the School bill stays yearly. Top-up chalks stay until they are used.
 
 Plans, in `lib/teacher/billing.ts` (`CHALK_PLANS`):
@@ -48,7 +65,7 @@ Add these to `.env` (this repo also reads `.env.local`; `.env.local` wins). Rest
 7. After Checkout, Plans stays on “confirmation pending” until the webhook arrives. Refresh after Razorpay delivers `subscription.activated`, `subscription.charged`, or `order.paid`. The webhook records the plan and the next bill date. Included chalks refill every 7 days from the subscription start, even if no webhook arrives that week, and unused weekly chalks do not roll over. Top-up chalks are added by `order.paid` and stay until they are used. **Cancel** asks Razorpay to stop the renewal at the end of the current period. A failed or halted payment clears the weekly chalks. Saved lessons can still be opened and taught.
 8. To grant a 30-day school pilot, run `pnpm exec tsx scripts/grant-school-pilot.ts --admin-uid FIREBASE_UID --seats 10 --name "School name"` on a machine with Firebase Admin credentials. That admin opens **School**, invites teachers by email, and can remove a seat. The invited teacher joins the shared pool when they sign in with that Google email. A paid school uses the yearly plan with quantity equal to the number of seats.
 
-The local emulator command `pnpm test:firebase-emulator` does not call Razorpay. It checks the trial banner, the billing page, the blocked screen, and that the generation API returns 402 after the trial.
+The local emulator command `pnpm test:firebase-emulator` does not call Razorpay. It sets `BILLING_ENABLED=true` for that run so it can check the trial banner, the billing page, the blocked screen, and that the generation API returns 402 after the trial. A normal `pnpm dev` leaves billing off unless you set the switch.
 
 ## Live mode, after KYC
 

@@ -1,15 +1,19 @@
 import { CreateLessonForm } from '@/components/teacher/CreateLessonForm';
 import { UpgradeScreen } from '@/components/teacher/UpgradeScreen';
+import { isBillingEnabled } from '@/lib/config/feature-flags';
 import { requireTeacherPageSession } from '@/lib/server/auth/session';
 import { loadTeacherBillingView } from '@/lib/server/billing/store';
 
 export default async function CreateLessonPage() {
   const user = await requireTeacherPageSession();
-  let state: 'open' | 'blocked' | 'unavailable' = 'unavailable';
-  try {
-    state = (await loadTeacherBillingView(user.id)).canStartLesson ? 'open' : 'blocked';
-  } catch {
+  let state: 'open' | 'blocked' | 'unavailable' = 'open';
+  if (isBillingEnabled()) {
     state = 'unavailable';
+    try {
+      state = (await loadTeacherBillingView(user.id)).canStartLesson ? 'open' : 'blocked';
+    } catch {
+      state = 'unavailable';
+    }
   }
   if (state === 'blocked') {
     return (

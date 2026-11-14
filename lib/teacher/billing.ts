@@ -1,5 +1,10 @@
 /**
  * India teacher plans. Change prices and chalk allowances here only.
+ *
+ * These numbers are unused while `BILLING_ENABLED` is off (the default).
+ * Teachers generate lessons for free until that switch is `true` or `1`.
+ * See `isBillingEnabled` in `lib/config/feature-flags.ts`.
+ *
  * Amounts are paise (₹99 = 9900).
  *
  * One chalk is one new AI-generated lesson. A lesson that fails does not spend

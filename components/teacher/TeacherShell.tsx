@@ -13,6 +13,7 @@ import {
   Users,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { isBillingUiEnabled } from '@/lib/config/feature-flags';
 import { ChalkIcon } from './ChalkIcon';
 import { SignOutButton } from './SignOutButton';
 
@@ -26,20 +27,32 @@ const navItems = [
   { href: '/settings', label: 'Settings', icon: Settings },
 ] as const;
 
+const billingNav = new Set<string>(['/billing', '/school']);
+
+/** Plans and School stay hidden while billing is off. Whiteboard stays. */
+export function visibleTeacherNav(billingEnabled: boolean) {
+  return billingEnabled ? navItems : navItems.filter((item) => !billingNav.has(item.href));
+}
+
 export function TeacherShell({
   children,
   teacherName,
   teacherEmail,
   photoURL,
   chalkLabel,
+  billingEnabled,
 }: {
   children: React.ReactNode;
   teacherName: string;
   teacherEmail: string;
   photoURL?: string;
   chalkLabel?: string | null;
+  /** Server value of BILLING_ENABLED. Falls back to the public mirror. */
+  billingEnabled?: boolean;
 }) {
   const pathname = usePathname();
+  const showBilling = billingEnabled ?? isBillingUiEnabled();
+  const items = visibleTeacherNav(showBilling);
 
   return (
     <div className="min-h-screen bg-[#f7f8fb] text-slate-950 dark:bg-slate-950 dark:text-slate-50">
@@ -61,7 +74,7 @@ export function TeacherShell({
           </Link>
 
           <nav aria-label="Primary navigation" className="hidden items-center gap-1 md:flex">
-            {navItems.map((item) => {
+            {items.map((item) => {
               const active = item.href === '/' ? pathname === '/' : pathname === item.href;
               const Icon = item.icon;
               return (
@@ -83,7 +96,7 @@ export function TeacherShell({
           </nav>
 
           <div className="flex items-center gap-1">
-            {chalkLabel ? (
+            {showBilling && chalkLabel ? (
               <Link
                 href="/billing"
                 data-testid="chalk-balance"
@@ -120,7 +133,7 @@ export function TeacherShell({
           aria-label="Mobile navigation"
           className="flex gap-1 overflow-x-auto border-t border-slate-100 px-3 py-2 md:hidden dark:border-slate-900"
         >
-          {navItems.map((item) => {
+          {items.map((item) => {
             const active = item.href === '/' ? pathname === '/' : pathname === item.href;
             return (
               <Link

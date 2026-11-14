@@ -1,9 +1,11 @@
 import { TeacherDashboard } from '@/components/teacher/TeacherDashboard';
+import { isBillingEnabled } from '@/lib/config/feature-flags';
 import { requireTeacherPageSession } from '@/lib/server/auth/session';
 import { loadTeacherBillingView } from '@/lib/server/billing/store';
 import type { TeacherBillingView } from '@/lib/teacher/billing';
 
 async function billingForCurrentTeacher(): Promise<TeacherBillingView | null> {
+  if (!isBillingEnabled()) return null;
   try {
     const user = await requireTeacherPageSession();
     return await loadTeacherBillingView(user.id);
@@ -13,5 +15,8 @@ async function billingForCurrentTeacher(): Promise<TeacherBillingView | null> {
 }
 
 export default async function TeacherDashboardPage() {
-  return <TeacherDashboard billing={await billingForCurrentTeacher()} />;
+  const billingEnabled = isBillingEnabled();
+  return (
+    <TeacherDashboard billingEnabled={billingEnabled} billing={await billingForCurrentTeacher()} />
+  );
 }
