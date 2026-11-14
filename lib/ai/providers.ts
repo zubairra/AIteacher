@@ -1309,6 +1309,22 @@ export const PROVIDERS: Record<ProviderId, ProviderConfig> = {
         outputWindow: 131072,
         capabilities: { streaming: true, tools: true, vision: false },
       },
+      // Live OpenRouter catalog (api/v1/models): text-only, tools + JSON mode.
+      // Appended so the default chat model stays DeepSeek V4 Flash.
+      {
+        id: 'baidu/ernie-5.5-flash-preview:free',
+        name: 'ERNIE 5.5 Flash Preview (free)',
+        contextWindow: 1024000,
+        outputWindow: 921600,
+        capabilities: { streaming: true, tools: true, vision: false },
+      },
+      {
+        id: 'baidu/ernie-light-dt-1.0-intl',
+        name: 'ERNIE Light DT 1.0',
+        contextWindow: 1024000,
+        outputWindow: 131072,
+        capabilities: { streaming: true, tools: true, vision: false },
+      },
     ],
   },
 
@@ -1883,10 +1899,37 @@ function getCompatThinkingBodyParams(
 
     case 'openrouter': {
       const reasoning: Record<string, unknown> = {};
-      if (mode === 'disabled') reasoning.enabled = false;
-      if (mode === 'enabled') reasoning.enabled = true;
-      if (config.effort) reasoning.effort = config.effort;
-      if (budget !== undefined) reasoning.max_tokens = budget;
+      const allowedEfforts = capability.effortValues;
+      const requestedEffort =
+        config.effort && allowedEfforts?.includes(config.effort) ? config.effort : undefined;
+      // OpenRouter marks some models reasoning.mandatory with one accepted
+      // effort. They reject `reasoning.enabled: false`, which would fail
+      // outline and scene generation. Stay on that effort instead.
+      const mandatoryEffort =
+        capability.toggleable === false && allowedEfforts?.length === 1
+          ? allowedEfforts[0]
+          : undefined;
+      const turningOff = mode === 'disabled' || requestedEffort === 'none';
+
+      if (turningOff && mandatoryEffort) {
+        reasoning.enabled = true;
+        reasoning.effort = mandatoryEffort;
+      } else {
+        if (mode === 'disabled') reasoning.enabled = false;
+        if (mode === 'enabled') reasoning.enabled = true;
+        if (requestedEffort) reasoning.effort = requestedEffort;
+        else if (
+          config.effort &&
+          config.effort !== 'none' &&
+          mode === 'enabled' &&
+          capability.defaultEffort
+        ) {
+          reasoning.effort = capability.defaultEffort;
+        }
+      }
+      if (budget !== undefined && capability.budgetAdjustable !== false) {
+        reasoning.max_tokens = budget;
+      }
       if (typeof config.excludeReasoningOutput === 'boolean') {
         reasoning.exclude = config.excludeReasoningOutput;
       }

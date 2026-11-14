@@ -682,6 +682,38 @@ describe('OpenAI provider defaults', () => {
       { reasoning: { enabled: true, effort: 'high' } },
     ],
     [
+      'openrouter',
+      'deepseek/deepseek-v4-pro',
+      { mode: 'disabled' },
+      { reasoning: { enabled: false } },
+    ],
+    // ERNIE 5.5 reasoning is mandatory and only accepts "high". A disable
+    // request stays on that effort instead of sending enabled:false.
+    [
+      'openrouter',
+      'baidu/ernie-5.5-flash-preview:free',
+      { mode: 'disabled' },
+      { reasoning: { enabled: true, effort: 'high' } },
+    ],
+    [
+      'openrouter',
+      'baidu/ernie-5.5-flash-preview:free',
+      { mode: 'enabled', effort: 'low' },
+      { reasoning: { enabled: true, effort: 'high' } },
+    ],
+    [
+      'openrouter',
+      'baidu/ernie-light-dt-1.0-intl',
+      { mode: 'enabled', effort: 'max' },
+      { reasoning: { enabled: true, effort: 'max' } },
+    ],
+    [
+      'openrouter',
+      'baidu/ernie-light-dt-1.0-intl',
+      { mode: 'disabled', effort: 'none' },
+      { reasoning: { enabled: false, effort: 'none' } },
+    ],
+    [
       'tencent-hunyuan',
       'hy3-preview',
       { mode: 'enabled', effort: 'high' },

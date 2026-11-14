@@ -464,6 +464,28 @@ const THINKING_CAPABILITIES: Record<string, ThinkingCapability> = {
     ['low', 'medium', 'high'],
     'medium',
   ),
+  // OpenRouter reasoning.mandatory, supported_efforts: ["high"] only.
+  [getModelMetadataKey('openrouter', 'baidu/ernie-5.5-flash-preview:free')]: {
+    control: 'effort',
+    requestAdapter: 'openrouter',
+    effortValues: ['high'],
+    defaultEffort: 'high',
+    defaultMode: 'enabled',
+    toggleable: false,
+    budgetAdjustable: false,
+    defaultEnabled: true,
+  },
+  // supported_efforts: none | low | high | max, default max, reasoning optional.
+  [getModelMetadataKey('openrouter', 'baidu/ernie-light-dt-1.0-intl')]: {
+    control: 'effort',
+    requestAdapter: 'openrouter',
+    effortValues: ['none', 'low', 'high', 'max'],
+    defaultEffort: 'max',
+    defaultMode: 'enabled',
+    toggleable: true,
+    budgetAdjustable: true,
+    defaultEnabled: true,
+  },
 
   [getModelMetadataKey('grok', 'grok-4.6')]: grok46Effort,
   [getModelMetadataKey('grok', 'grok-4.5')]: grok45Effort,
