@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { PROVIDERS } from '@/lib/ai/providers';
+import { defaultTeacherModelId } from '@/lib/teacher/provider-defaults';
 import {
   getTeacherProviderPreference,
   isTeacherProviderId,
@@ -36,7 +37,8 @@ const saveSchema = z.object({
 });
 
 export async function POST(request: Request) {
-  if (!isSameOriginMutation(request)) return Response.json({ error: 'Invalid origin' }, { status: 403 });
+  if (!isSameOriginMutation(request))
+    return Response.json({ error: 'Invalid origin' }, { status: 403 });
   const user = await authenticated(request);
   if (!user) return Response.json({ error: 'Authentication required' }, { status: 401 });
   const parsed = saveSchema.safeParse(await request.json().catch(() => null));
@@ -48,7 +50,7 @@ export async function POST(request: Request) {
     return Response.json({ error: 'Invalid provider configuration' }, { status: 400 });
   }
   const provider = PROVIDERS[providerId];
-  const modelId = parsed.data.modelId || provider.models[0]?.id;
+  const modelId = parsed.data.modelId || defaultTeacherModelId(providerId, provider.models);
   if (!modelId || !provider.models.some((model) => model.id === modelId)) {
     return Response.json({ error: 'Select a supported model' }, { status: 400 });
   }
@@ -60,7 +62,11 @@ export async function POST(request: Request) {
       modelId,
       verificationStatus: 'unverified',
     });
-    return Response.json({ configured: true, maskedSuffix: parsed.data.apiKey.slice(-4), verificationStatus: 'unverified' });
+    return Response.json({
+      configured: true,
+      maskedSuffix: parsed.data.apiKey.slice(-4),
+      verificationStatus: 'unverified',
+    });
   } catch {
     return Response.json({ error: 'Could not securely save this credential' }, { status: 500 });
   }
@@ -69,7 +75,8 @@ export async function POST(request: Request) {
 const providerSchema = z.object({ providerId: z.string().min(1).max(80) });
 
 export async function DELETE(request: Request) {
-  if (!isSameOriginMutation(request)) return Response.json({ error: 'Invalid origin' }, { status: 403 });
+  if (!isSameOriginMutation(request))
+    return Response.json({ error: 'Invalid origin' }, { status: 403 });
   const user = await authenticated(request);
   if (!user) return Response.json({ error: 'Authentication required' }, { status: 401 });
   const parsed = providerSchema.safeParse(await request.json().catch(() => null));
@@ -86,7 +93,8 @@ const preferenceSchema = z.object({
 });
 
 export async function PATCH(request: Request) {
-  if (!isSameOriginMutation(request)) return Response.json({ error: 'Invalid origin' }, { status: 403 });
+  if (!isSameOriginMutation(request))
+    return Response.json({ error: 'Invalid origin' }, { status: 403 });
   const user = await authenticated(request);
   if (!user) return Response.json({ error: 'Authentication required' }, { status: 401 });
   const parsed = preferenceSchema.safeParse(await request.json().catch(() => null));
