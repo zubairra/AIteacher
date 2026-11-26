@@ -8,6 +8,7 @@ import { toTeacherLessonListItem, type TeacherLessonListItem } from '@/lib/teach
 import { isBillingUiEnabled } from '@/lib/config/feature-flags';
 import type { TeacherBillingView } from '@/lib/teacher/billing';
 import { Button } from '@/components/ui/button';
+import { ShareLessonButton } from './ShareLessonButton';
 import { TrialBanner } from './TrialBanner';
 
 function formatModified(timestamp: number): string {
@@ -47,13 +48,16 @@ function LessonCard({ lesson }: { lesson: TeacherLessonListItem }) {
           <Clock3 className="size-3.5" aria-hidden="true" />
           {formatModified(lesson.updatedAt)}
         </p>
-        <Link
-          href={lesson.isTeacherLesson ? `/lessons/${lesson.id}/edit` : `/classroom/${lesson.id}`}
-          className="inline-flex min-h-10 items-center gap-1.5 rounded-lg px-3 text-sm font-semibold text-violet-700 hover:bg-violet-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-600 dark:text-violet-200 dark:hover:bg-violet-950/50"
-        >
-          {lesson.isTeacherLesson ? 'Review' : 'Open'}
-          <ArrowRight className="size-4" aria-hidden="true" />
-        </Link>
+        <div className="flex items-center gap-1">
+          <ShareLessonButton lessonId={lesson.id} />
+          <Link
+            href={lesson.isTeacherLesson ? `/lessons/${lesson.id}/edit` : `/classroom/${lesson.id}`}
+            className="inline-flex min-h-10 items-center gap-1.5 rounded-lg px-3 text-sm font-semibold text-violet-700 hover:bg-violet-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-600 dark:text-violet-200 dark:hover:bg-violet-950/50"
+          >
+            {lesson.isTeacherLesson ? 'Review' : 'Open'}
+            <ArrowRight className="size-4" aria-hidden="true" />
+          </Link>
+        </div>
       </div>
     </article>
   );
