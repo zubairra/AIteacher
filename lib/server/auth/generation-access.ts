@@ -3,7 +3,9 @@ import { randomUUID } from 'node:crypto';
 import { apiError } from '@/lib/server/api-response';
 import { isBillingEnabled } from '@/lib/config/feature-flags';
 import { rememberLessonHold } from '@/lib/server/billing/lesson-chalk';
-import { FREE_LESSON_LIMIT_MESSAGE, takeFreeLessonSlot } from '@/lib/server/billing/free-mode';
+import { FREE_LESSON_LIMIT_MESSAGE } from '@/lib/server/billing/free-mode';
+import { consumeTeacherLessonAllowance } from '@/lib/server/billing/persisted-quota';
+import { readAccountRole } from '@/lib/server/student/account';
 import { ensureTeacherTrial, reserveLessonChalk } from '@/lib/server/billing/store';
 import { resolveTeacherProviderCredential } from '@/lib/server/auth/credential-vault';
 import { ProviderSetupError } from '@/lib/server/provider-setup-error';
@@ -24,9 +26,20 @@ export async function requireTeacherGeneration(
   if (!teacher) {
     return apiError('UNAUTHENTICATED', 401, 'Sign in to generate a lesson.');
   }
+  if ((await readAccountRole(teacher.id)) === 'student') {
+    return apiError('FORBIDDEN', 403, 'Sign in with a teacher account to generate a lesson.');
+  }
   if (!isBillingEnabled()) {
-    if (options?.lesson && !takeFreeLessonSlot(teacher.id)) {
-      return apiError('RATE_LIMITED', 429, FREE_LESSON_LIMIT_MESSAGE);
+    try {
+      if (options?.lesson && !(await consumeTeacherLessonAllowance(teacher.id))) {
+        return apiError('RATE_LIMITED', 429, FREE_LESSON_LIMIT_MESSAGE);
+      }
+    } catch {
+      return apiError(
+        'INTERNAL_ERROR',
+        503,
+        'Lesson limits could not be checked. Try again in a moment.',
+      );
     }
     return null;
   }

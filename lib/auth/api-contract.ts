@@ -8,7 +8,12 @@ export type AuthErrorCode =
   | 'AUTH_NETWORK_ERROR';
 
 export type AuthApiResponse =
-  | { ok: true; user?: { id: string; name: string; email: string } }
+  | {
+      ok: true;
+      user?: { id: string; name: string; email: string };
+      role?: 'teacher' | 'student';
+      notice?: string;
+    }
   | { ok: false; code: AuthErrorCode; message: string };
 
 const FALLBACK_MESSAGE = 'Unable to sign in right now. Please try again.';
