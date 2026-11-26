@@ -27,6 +27,7 @@ import {
 import { resolveTeacherProviderCredential } from '@/lib/server/auth/credential-vault';
 import { serverProviderBaseUrlOverride } from '@/lib/server/auth/provider-endpoint';
 import { resolveTeacherSessionRequest } from '@/lib/server/auth/session';
+import { readAccountRole } from '@/lib/server/student/account';
 import { ProviderSetupError } from '@/lib/server/provider-setup-error';
 
 export interface ResolvedModel extends ModelWithInfo {
@@ -254,7 +255,7 @@ export async function resolveModelFromHeaders(
   thinkingConfig?: ThinkingConfig,
 ): Promise<ResolvedModel> {
   const teacher = await resolveTeacherSessionRequest(req);
-  if (teacher) {
+  if (teacher && (await readAccountRole(teacher.id)) !== 'student') {
     return resolveSignedInTeacherModel(teacher.id, thinkingConfig);
   }
   return resolveModel({

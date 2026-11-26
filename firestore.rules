@@ -66,6 +66,48 @@ service cloud.firestore {
         // denied even to the owning user.
         allow read, write: if false;
       }
+
+      match /private/{docId} {
+        // Role and age confirmation. The server writes them. Clients cannot.
+        allow read, write: if false;
+      }
+
+      match /generationUsage/{docId} {
+        allow read, write: if false;
+      }
+
+      match /classroom/{docId} {
+        allow read, write: if false;
+      }
+
+      match /lessonShareIndex/{lessonId} {
+        allow read, write: if false;
+      }
+
+      match /lessonGrants/{grantId} {
+        allow read: if signedInAs(uid);
+        allow write: if false;
+      }
+
+      match /learning/{docId} {
+        allow read: if signedInAs(uid);
+        allow write: if false;
+      }
+
+      match /tutorSessions/{sessionId} {
+        allow read: if signedInAs(uid);
+        allow write: if false;
+
+        match /messages/{messageId} {
+          allow read: if signedInAs(uid);
+          allow write: if false;
+        }
+
+        match /keys/{messageId} {
+          // Answer keys stay on the server.
+          allow read, write: if false;
+        }
+      }
     }
 
     match /billingIndex/{subscriptionId} {
@@ -96,6 +138,30 @@ service cloud.firestore {
     }
 
     match /schoolInvites/{inviteId} {
+      allow read, write: if false;
+    }
+
+    match /classes/{classId} {
+      allow read, write: if false;
+
+      match /members/{memberId} {
+        allow read, write: if false;
+      }
+
+      match /lessons/{lessonId} {
+        allow read, write: if false;
+      }
+    }
+
+    match /joinCodes/{code} {
+      allow read, write: if false;
+    }
+
+    match /lessonShares/{token} {
+      allow read, write: if false;
+    }
+
+    match /generationUsage/{docId} {
       allow read, write: if false;
     }
 

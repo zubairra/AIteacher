@@ -223,6 +223,36 @@ describeRules('Firestore rules on the emulator', () => {
       setDoc(doc(teacher, 'schools/demo/members/teacher-b'), { chalksUsedThisPeriod: 0 }),
     );
   });
+
+  test('a student can read only their tutor data and cannot write it or see answer keys', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      const db = context.firestore();
+      await setDoc(doc(db, 'users/student-a/tutorSessions/ses_one'), { studentUid: 'student-a' });
+      await setDoc(doc(db, 'users/student-a/tutorSessions/ses_one/messages/m1'), { text: 'hello' });
+      await setDoc(doc(db, 'users/student-a/tutorSessions/ses_one/keys/m1'), {
+        accept: ['secret'],
+      });
+      await setDoc(doc(db, 'users/student-b/tutorSessions/ses_two'), { studentUid: 'student-b' });
+      await setDoc(doc(db, 'users/student-a/lessonGrants/grant1'), { studentUid: 'student-a' });
+      await setDoc(doc(db, 'joinCodes/ABCDEF'), { classId: 'cls_1' });
+      await setDoc(doc(db, 'generationUsage/studentTutorGlobal'), { count: 1 });
+    });
+    const studentA = authed('student-a');
+    await assertSucceeds(getDoc(doc(studentA, 'users/student-a/tutorSessions/ses_one')));
+    await assertSucceeds(
+      getDoc(doc(studentA, 'users/student-a/tutorSessions/ses_one/messages/m1')),
+    );
+    await assertFails(getDoc(doc(studentA, 'users/student-a/tutorSessions/ses_one/keys/m1')));
+    await assertFails(
+      setDoc(doc(studentA, 'users/student-a/tutorSessions/ses_one/messages/m2'), { text: 'nope' }),
+    );
+    await assertFails(getDoc(doc(studentA, 'users/student-b/tutorSessions/ses_two')));
+    await assertFails(getDoc(doc(studentA, 'joinCodes/ABCDEF')));
+    await assertFails(getDoc(doc(studentA, 'generationUsage/studentTutorGlobal')));
+    const studentB = authed('student-b');
+    await assertFails(getDoc(doc(studentB, 'users/student-a/lessonGrants/grant1')));
+    await assertFails(getDoc(doc(studentB, 'users/student-a/tutorSessions/ses_one/messages/m1')));
+  });
 });
 
 if (!emulatorHost) {

@@ -29,5 +29,12 @@ describe('Firestore ownership boundaries', () => {
     expect(rules).toContain('match /billingIndex/{subscriptionId}');
     expect(rules).toContain('match /schools/{schoolId}');
     expect(rules).toContain('allow read, write: if false;');
+    expect(rules).toContain('match /private/{docId}');
+    expect(rules).toContain('match /tutorSessions/{sessionId}');
+    expect(rules).toContain('match /keys/{messageId}');
+    expect(rules).toContain('match /lessonGrants/{grantId}');
+    expect(rules).toContain('match /joinCodes/{code}');
+    expect(rules).toContain('match /generationUsage/{docId}');
+    expect(rules).toMatch(/match \/tutorSessions\/\{sessionId\}[\s\S]*?allow write: if false;/);
   });
 });

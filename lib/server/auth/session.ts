@@ -2,6 +2,7 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 
 import { claimSchoolInvite, ensureTeacherTrial } from '@/lib/server/billing/store';
+import { adminAccountDb, commitSignInRole, StudentSignInError } from '@/lib/server/student/account';
 import { firebaseAdminAuth, firebaseAdminDb } from '@/lib/server/firebase/admin';
 
 export const TEACHER_SESSION_COOKIE = 'smartboard_firebase_session';
@@ -47,9 +48,19 @@ function userFromClaims(claims: {
   };
 }
 
-export async function createTeacherSession(idToken: string) {
+export async function createTeacherSession(
+  idToken: string,
+  options?: { role?: 'teacher' | 'student'; ageConfirmed?: boolean },
+) {
   const auth = firebaseAdminAuth();
   const decoded = await auth.verifyIdToken(idToken, true);
+  const decision = await commitSignInRole(adminAccountDb(), {
+    uid: decoded.uid,
+    requestedRole: options?.role,
+    ageConfirmed: options?.ageConfirmed === true,
+    now: Date.now(),
+  });
+  if ('error' in decision) throw new StudentSignInError();
   const token = await auth.createSessionCookie(idToken, { expiresIn: SESSION_SECONDS * 1000 });
   const user = userFromClaims(decoded);
   const profile = firebaseAdminDb().doc(`users/${decoded.uid}`);
@@ -66,9 +77,16 @@ export async function createTeacherSession(idToken: string) {
     },
     { merge: true },
   );
-  await ensureTeacherTrial(decoded.uid, typeof createdAt === 'number' ? createdAt : Date.now());
-  if (user.email) await claimSchoolInvite(decoded.uid, user.email);
-  return { token, user };
+  if (decision.role === 'teacher') {
+    await ensureTeacherTrial(decoded.uid, typeof createdAt === 'number' ? createdAt : Date.now());
+    if (user.email) await claimSchoolInvite(decoded.uid, user.email);
+  }
+  return {
+    token,
+    user,
+    role: decision.role,
+    ...(decision.notice ? { notice: decision.notice } : {}),
+  };
 }
 
 export async function resolveTeacherSessionToken(
